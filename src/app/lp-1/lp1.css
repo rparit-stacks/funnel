@@ -1,0 +1,629 @@
+/* LP-1 variant styles. Scoped to the /lp-1 route only. Every class is lp1- prefixed.
+   Perf rule for this file: no filter/backdrop-filter, and only transform/opacity are
+   animated. Blurred + animated layers are what made this page drop frames. */
+
+.lp1-root {
+  --lp1-violet: #7c3aed;
+  --lp1-purple: #a855f7;
+  --lp1-fuchsia: #c026d3;
+  --lp1-indigo: #4f46e5;
+  --lp1-deep: #0b0616;
+  --lp1-deep-2: #17092e;
+  --lp1-text: #f4eefe;
+  --lp1-dim: #b7a8d4;
+
+  position: relative;
+  z-index: 0;
+  min-height: 100dvh;
+  color: var(--lp1-text);
+  isolation: isolate;
+}
+
+/* —— Backdrop: static gradients only. Radial gradients already read as soft
+   glowing orbs, so we get the look without blur() rasterization every frame. —— */
+.lp1-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(68% 42% at 10% 6%, rgba(124, 58, 237, 0.45) 0%, transparent 62%),
+    radial-gradient(58% 40% at 94% 30%, rgba(192, 38, 211, 0.32) 0%, transparent 66%),
+    radial-gradient(75% 45% at 50% 102%, rgba(79, 70, 229, 0.3) 0%, transparent 70%),
+    linear-gradient(180deg, var(--lp1-deep-2) 0%, var(--lp1-deep) 55%, #050209 100%);
+}
+
+.lp1-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(168, 85, 247, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168, 85, 247, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+  -webkit-mask-image: radial-gradient(90% 60% at 50% 10%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(90% 60% at 50% 10%, #000 0%, transparent 75%);
+}
+
+.lp1-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* —— Surfaces: layered translucent gradients instead of backdrop-filter —— */
+.lp1-glass {
+  position: relative;
+  border: 1px solid rgba(168, 85, 247, 0.26);
+  border-radius: 1.5rem;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(70, 38, 124, 0.58) 0%,
+      rgba(31, 16, 60, 0.62) 45%,
+      rgba(14, 7, 28, 0.68) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 20px 50px -32px rgba(0, 0, 0, 0.9);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.lp1-glass:active {
+  transform: scale(0.995);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp1-glass:hover {
+    transform: translateY(-3px);
+    border-color: rgba(216, 130, 255, 0.5);
+  }
+}
+
+.lp1-glass-flat {
+  border: 1px solid rgba(168, 85, 247, 0.24);
+  border-radius: 1.25rem;
+  background: linear-gradient(160deg, rgba(64, 34, 116, 0.5) 0%, rgba(16, 8, 32, 0.6) 100%);
+}
+
+.lp1-outline {
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 9999px;
+}
+
+/* —— Text treatments —— */
+.lp1-grad-text {
+  background-image: linear-gradient(100deg, #f0abfc 0%, #c084fc 42%, #818cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lp1-dim {
+  color: var(--lp1-dim);
+}
+
+.lp1-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(216, 130, 255, 0.45);
+  border-radius: 9999px;
+  background: rgba(124, 58, 237, 0.18);
+  padding: 0.3rem 0.8rem;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e9d5ff;
+}
+
+.lp1-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #e879f9;
+  opacity: 1;
+  animation: lp1-dot-fade 2s ease-in-out infinite;
+}
+
+/* —— CTA button —— */
+.lp1-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.95rem 1.1rem;
+  text-align: center;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background-image: linear-gradient(100deg, #4f46e5 0%, #7c3aed 34%, #c026d3 100%);
+  box-shadow: 0 14px 34px -12px rgba(192, 38, 211, 0.85);
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.lp1-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.4) 50%, transparent 62%);
+  animation: lp1-shine 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.lp1-btn-label,
+.lp1-btn-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.lp1-btn:active {
+  transform: translateY(2px) scale(0.99);
+  filter: brightness(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp1-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+  }
+}
+
+.lp1-btn-invert {
+  background-image: none;
+  background-color: #ffffff;
+  color: #4c1d95;
+  box-shadow: 0 18px 38px -16px rgba(0, 0, 0, 0.6);
+}
+
+.lp1-btn-invert::after {
+  background: linear-gradient(105deg, transparent 38%, rgba(124, 58, 237, 0.26) 50%, transparent 62%);
+}
+
+/* —— Marquee (transform-only, cheap) —— */
+.lp1-marquee {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-block: 1px solid rgba(168, 85, 247, 0.25);
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.22), rgba(192, 38, 211, 0.16));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.lp1-marquee-track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  animation: lp1-marquee 40s linear infinite;
+}
+
+.lp1-marquee-slow .lp1-marquee-track {
+  animation-duration: 60s;
+}
+
+.lp1-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #f0e4ff;
+}
+
+.lp1-marquee-sep {
+  color: #e879f9;
+}
+
+/* —— Hero media —— */
+.lp1-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(216, 130, 255, 0.35);
+  background: linear-gradient(150deg, rgba(124, 58, 237, 0.4), rgba(11, 6, 22, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 30px 70px -40px rgba(168, 85, 247, 0.85);
+}
+
+.lp1-play {
+  position: relative;
+  display: flex;
+  height: 4rem;
+  width: 4rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #fff;
+  background-image: linear-gradient(150deg, #d946ef 0%, #7c3aed 60%, #4f46e5 100%);
+  box-shadow: 0 16px 34px -12px rgba(217, 70, 239, 0.9);
+}
+
+.lp1-play-sm {
+  height: 3rem;
+  width: 3rem;
+}
+
+.lp1-play::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  border: 2px solid rgba(240, 171, 252, 0.7);
+  animation: lp1-ring 2.4s ease-out infinite;
+}
+
+/* —— Numerals / bento —— */
+.lp1-num {
+  font-size: clamp(1.9rem, 7vw, 2.6rem);
+  font-weight: 900;
+  line-height: 0.85;
+  background-image: linear-gradient(160deg, #f0abfc, #a855f7 55%, rgba(124, 58, 237, 0.4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lp1-bento {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.4rem;
+  border: 1px solid rgba(168, 85, 247, 0.26);
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgba(192, 38, 211, 0.28) 0%, transparent 62%),
+    linear-gradient(155deg, rgba(66, 34, 118, 0.5), rgba(14, 7, 28, 0.62));
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.lp1-bento:active {
+  transform: scale(0.995);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp1-bento:hover {
+    transform: translateY(-4px);
+    border-color: rgba(240, 171, 252, 0.55);
+  }
+}
+
+/* —— Ticket stub pricing —— */
+.lp1-ticket {
+  position: relative;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(240, 171, 252, 0.45);
+  background: linear-gradient(165deg, rgba(124, 58, 237, 0.45) 0%, rgba(17, 9, 34, 0.94) 70%);
+  box-shadow: 0 30px 64px -36px rgba(168, 85, 247, 0.9);
+}
+
+.lp1-tear {
+  position: relative;
+  height: 0;
+  border-top: 2px dashed rgba(240, 171, 252, 0.45);
+}
+
+.lp1-tear::before,
+.lp1-tear::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #0b0616;
+  border: 1px solid rgba(240, 171, 252, 0.4);
+}
+
+.lp1-tear::before {
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+.lp1-tear::after {
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+.lp1-price {
+  display: inline-block;
+  font-size: clamp(2.5rem, 11vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  text-shadow: 0 10px 40px rgba(216, 130, 255, 0.55);
+}
+
+/* —— Horizontal rail (mobile/tablet); becomes a grid at lg —— */
+.lp1-rail {
+  display: flex;
+  gap: 0.85rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.5rem;
+}
+
+.lp1-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.lp1-rail-item {
+  flex: 0 0 76%;
+  scroll-snap-align: center;
+}
+
+@media (min-width: 640px) {
+  .lp1-rail-item {
+    flex-basis: 44%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lp1-rail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    overflow: visible;
+  }
+
+  .lp1-rail-item {
+    flex-basis: auto;
+  }
+}
+
+/* —— VS split —— */
+.lp1-vs {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background-image: linear-gradient(150deg, #c026d3, #4f46e5);
+  box-shadow: 0 0 0 6px rgba(124, 58, 237, 0.18), 0 12px 28px -10px rgba(192, 38, 211, 0.9);
+}
+
+.lp1-option-bad {
+  border: 1px solid rgba(148, 130, 180, 0.28);
+  border-radius: 1.3rem;
+  background: linear-gradient(160deg, rgba(40, 30, 62, 0.5), rgba(8, 4, 16, 0.62));
+}
+
+.lp1-option-good {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(240, 171, 252, 0.55);
+  border-radius: 1.3rem;
+  background: linear-gradient(160deg, rgba(192, 38, 211, 0.34), rgba(79, 70, 229, 0.24) 60%, rgba(12, 6, 24, 0.72));
+  box-shadow: 0 22px 54px -32px rgba(192, 38, 211, 0.9);
+}
+
+/* —— Full-bleed gradient band —— */
+.lp1-band {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(115deg, #4f46e5 0%, #7c3aed 32%, #c026d3 100%);
+}
+
+.lp1-band-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* —— Misc —— */
+.lp1-rule {
+  height: 1px;
+  width: 100%;
+  background-image: linear-gradient(90deg, transparent, rgba(216, 130, 255, 0.6), transparent);
+}
+
+.lp1-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.3rem;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.lp1-media:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp1-media:hover {
+    transform: translateY(-3px);
+  }
+}
+
+.lp1-on-band {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.lp1-stat {
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  border-radius: 1.1rem;
+  background: linear-gradient(160deg, rgba(64, 34, 116, 0.5), rgba(14, 7, 28, 0.55));
+}
+
+/* —— Sticky CTA bar (LP-1 themed) —— */
+.lp1-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  border-top: 1px solid rgba(216, 130, 255, 0.35);
+  background: linear-gradient(180deg, rgba(23, 9, 46, 0.97) 0%, rgba(7, 3, 15, 0.99) 100%);
+  box-shadow: 0 -18px 46px -20px rgba(168, 85, 247, 0.5);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* line-height must leave room for ascenders — background-clip:text crops to the
+   line box, which was shearing the top off the price glyphs on mobile. */
+.lp1-bar-price {
+  display: inline-block;
+  font-size: clamp(1.4rem, 6vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.22;
+}
+
+.lp1-bar-timer {
+  font-variant-numeric: tabular-nums;
+  color: #f5d0fe;
+}
+
+.lp1-bar-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 9999px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  background-image: linear-gradient(100deg, #4f46e5 0%, #7c3aed 34%, #c026d3 100%);
+  box-shadow: 0 14px 30px -12px rgba(192, 38, 211, 0.9);
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.lp1-bar-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.38) 50%, transparent 62%);
+  animation: lp1-shine 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.lp1-bar-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+.lp1-bar-btn:active {
+  transform: translateY(2px) scale(0.99);
+  filter: brightness(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp1-bar-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+  }
+}
+
+/* —— One-time entrance —— */
+.lp1-enter {
+  animation: lp1-enter-up 0.55s ease-out both;
+}
+
+.lp1-enter-2 {
+  animation: lp1-enter-up 0.55s ease-out 0.08s both;
+}
+
+.lp1-enter-3 {
+  animation: lp1-enter-up 0.55s ease-out 0.16s both;
+}
+
+.lp1-enter-4 {
+  animation: lp1-enter-up 0.55s ease-out 0.24s both;
+}
+
+/* —— Keyframes: transform/opacity only —— */
+@keyframes lp1-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lp1-shine {
+  0% {
+    transform: translateX(-120%) skewX(-14deg);
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+  }
+  46%,
+  100% {
+    transform: translateX(140%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+
+@keyframes lp1-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@keyframes lp1-dot-fade {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes lp1-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp1-root *,
+  .lp1-root *::before,
+  .lp1-root *::after,
+  .lp1-bar *,
+  .lp1-bar *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .lp1-root .lp1-enter,
+  .lp1-root .lp1-enter-2,
+  .lp1-root .lp1-enter-3,
+  .lp1-root .lp1-enter-4 {
+    opacity: 1;
+    transform: none;
+  }
+}

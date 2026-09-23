@@ -3,18 +3,18 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
-  // Lets HMR work when testing from a phone on the same network via the LAN IP
-  // Next prints on startup (e.g. http://10.x.x.x:3000). Dev-only, no effect on prod.
-  allowedDevOrigins: ["10.5.54.3"],
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.unsplash.com",
+        hostname: "lh3.googleusercontent.com",
         pathname: "/**",
       },
     ],
+  },
+  experimental: {
+    optimizePackageImports: [],
   },
 };
 

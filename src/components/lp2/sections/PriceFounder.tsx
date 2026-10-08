@@ -15,7 +15,7 @@ export function PriceFounder() {
           <article className="lp2-shot">
             <div className="relative aspect-[4/5] w-full">
               <Image
-                src={media.founder}
+                src={media.team.umaPortrait}
                 alt={founder.person}
                 fill
                 sizes="(max-width: 1024px) 90vw, 430px"

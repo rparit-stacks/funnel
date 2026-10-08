@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { HeroVideo } from "@/components/lp2/HeroVideo";
 import { Lp2Button, Lp2Eyebrow, Lp2Section } from "@/components/lp2/ui";
 import { funnel, heroContent } from "@/data/funnel";
 import { media } from "@/data/media";
@@ -9,7 +10,7 @@ const ACCENT_PHRASE = "Metabolic Reset Formula";
 const trustPills = [
   `₹${OFFER.price} today · was ₹${OFFER.originalPrice}`,
   "100% money-back",
-  "1:1 with Dr. Uma",
+  "1:1 with an expert coach",
 ];
 
 export function Hero() {
@@ -48,25 +49,7 @@ export function Hero() {
           <div className="relative">
             <span className="lp2-stage-glow" aria-hidden />
             <div className="lp2-stage">
-              <div className="relative aspect-video w-full">
-                <Image
-                  src={media.heroThumb}
-                  alt="Metabolic reset presentation"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 620px"
-                  className="object-cover opacity-95"
-                  priority
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b]/70 via-[#0a0a0b]/10 to-[#0a0a0b]/20" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5">
-                  <span className="lp2-play">
-                    <svg className="h-7 w-7 translate-x-[3px] fill-current" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </span>
-                  <span className="lp2-video-label">{heroContent.videoLabel}</span>
-                </div>
-              </div>
+              <HeroVideo label={heroContent.videoLabel} />
             </div>
           </div>
         </div>

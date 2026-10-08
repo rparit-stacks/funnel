@@ -30,4 +30,19 @@ export const media = {
     "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80",
   ],
   moneyBack: "/images/money-back.png",
+  /** Real mentor photos (web-sized copies of /images/mentors originals). */
+  team: {
+    couple: "/images/team/uma-jagan-portrait.jpg",
+    umaAward: "/images/team/uma-award.jpg",
+    jaganAward: "/images/team/jagan-award.jpg",
+    umaPortrait: "/images/team/uma-portrait.jpg",
+    communityZoom: "/images/team/community-zoom.jpg",
+    liveEvent: "/images/team/live-event.jpg",
+    stage: [
+      { src: "/images/team/stage-jagan-1.jpg", alt: "Jagan speaking on stage", pos: "50% 30%" },
+      { src: "/images/team/stage-uma-1.jpg", alt: "Dr. Uma speaking on stage", pos: "52% 30%" },
+      { src: "/images/team/stage-jagan-2.jpg", alt: "Jagan explaining diabetes and cholesterol on stage", pos: "46% 30%" },
+      { src: "/images/team/stage-uma-2.jpg", alt: "Dr. Uma presenting on stage", pos: "50% 30%" },
+    ],
+  },
 } as const;

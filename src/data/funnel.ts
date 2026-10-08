@@ -21,7 +21,7 @@ export const funnel = {
     bookShort: "BOOK YOUR 1:1 ROOT-CAUSE CONSULTATION",
   },
   refund:
-    "If you feel the session wasn't useful, we'll refund the fee. No questions asked.",
+    "100% refund if the ₹198 call isn't worth 10× the value. Request it by email within 7 days.",
 } as const;
 
 export const heroContent = {
@@ -30,7 +30,7 @@ export const heroContent = {
   subheadline:
     "Fix The Root Cause of Diabetes, Thyroid & Belly Fat with FUME Science-Backed Metabolic Reset Framework. Without Diets, Gym, or Lifelong Medicines.",
   socialProof:
-    "Trusted by 4,000+ busy professionals with diabetes, thyroid & fertility challenges",
+    "Trusted by 15,000+ busy professionals with diabetes, thyroid & fertility challenges",
   videoLabel: "Click Play",
 };
 
@@ -82,7 +82,7 @@ export const guarantee = {
   description:
     "We are so confident in the transformative value of our program that we're willing to guarantee it. During your one-on-one consultation, you'll receive actionable, personalized steps to help you achieve your health and fitness goals faster than ever before.",
   guarantee:
-    "If you follow the strategies we provide and don't see real, measurable results, we'll refund your consultation fee in full. No questions asked.",
+    "If your 1:1 call isn't worth at least 10× what you paid, email us within 7 days and we'll refund your ₹198 in full.",
   closing:
     "Your success is our priority, and with our proven system, you've got nothing to lose and everything to gain!",
 };
@@ -99,7 +99,7 @@ export const benefits = {
 };
 
 export const socialProofIntro = {
-  headline: "4,000+ Busy Professionals Have Transformed Their Lives!",
+  headline: "15,000+ Busy Professionals Have Transformed Their Lives!",
   brand: "FUME",
 };
 
@@ -146,9 +146,9 @@ export const founder = {
   previousAttempts:
     "I tried every diet and intense workout routine I could find, but nothing worked.",
   startingWeight: "75 kg",
-  personalResult: "Lost 19 kgs, reversed chronic conditions, and regained energy.",
+  personalResult: "Together, Uma and Jagan have lost 36 kgs.",
   createdSystem: "Metabolic Reset Formula",
-  claimedReach: "Has helped over 10,000 individuals",
+  claimedReach: "Has helped over 15,000 professionals",
   mission: "Help one million people transform their health and reclaim their youthfulness.",
   philosophy: "Science-backed, sustainable solutions that work for busy professionals.",
   closing: "If I can do it, so can you!",
@@ -178,7 +178,7 @@ export const decision = {
 };
 
 export const footer = {
-  copyright: "Copyright © 2025 Fume | All Rights Reserved",
+  copyright: "Copyright © 2026 Fume | All Rights Reserved",
   facebookDisclaimer:
     "This site is not a part of Meta or Facebook Inc. Additionally this site is not endorsed by Facebook in any way. Facebook is a trademark of Meta Inc.",
   links: ["Disclaimer", "Privacy Policy"] as const,

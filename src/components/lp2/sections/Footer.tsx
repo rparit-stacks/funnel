@@ -1,9 +1,10 @@
+import Image from "next/image";
 import { LP2_WRAP } from "@/components/lp2/ui";
 import { footer, founder, funnel } from "@/data/funnel";
 
 const chips = [
   `100% money-back`,
-  `1:1 with ${founder.person}`,
+  `1:1 with an expert coach`,
   `₹${funnel.primaryOffer.price} today`,
 ];
 
@@ -13,9 +14,7 @@ export function Footer() {
       <div className={LP2_WRAP}>
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between md:gap-12">
           <div className="max-w-sm">
-            <p className="text-[22px] font-black tracking-tight text-white">
-              FUME<span className="text-violet-400">.Fit</span>
-            </p>
+            <Image src="/images/fume-logo.png" alt="FUME" width={1240} height={270} className="h-6 w-auto" />
             <p className="mt-3 text-pretty text-[13px] leading-[1.7] text-white/55">
               {founder.mission}
             </p>

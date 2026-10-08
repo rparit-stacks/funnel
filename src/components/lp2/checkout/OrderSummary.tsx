@@ -40,7 +40,7 @@ export function OrderSummary() {
       <div className="lp2-panel flex items-center gap-3.5 p-3.5 sm:p-4">
         <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full sm:h-20 sm:w-20">
           <Image
-            src={media.founder}
+            src={media.team.umaPortrait}
             alt={founder.person}
             fill
             sizes="80px"

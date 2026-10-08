@@ -3,14 +3,17 @@ import { Lp2Header } from "@/components/lp2/Lp2Header";
 import { Lp2StickyBar } from "@/components/lp2/Lp2StickyBar";
 import { Benefits } from "@/components/lp2/sections/Benefits";
 import { Bonuses } from "@/components/lp2/sections/Bonuses";
+import { Community } from "@/components/lp2/sections/Community";
 import { Decision } from "@/components/lp2/sections/Decision";
 import { FinalCta } from "@/components/lp2/sections/FinalCta";
 import { Footer } from "@/components/lp2/sections/Footer";
 import { FounderStory } from "@/components/lp2/sections/FounderStory";
 import { Guarantee } from "@/components/lp2/sections/Guarantee";
 import { Hero } from "@/components/lp2/sections/Hero";
+import { OnStage } from "@/components/lp2/sections/OnStage";
 import { Offer } from "@/components/lp2/sections/Offer";
 import { PriceFounder } from "@/components/lp2/sections/PriceFounder";
+import { Recognition } from "@/components/lp2/sections/Recognition";
 import { Transformations } from "@/components/lp2/sections/Transformations";
 import { ValueStack } from "@/components/lp2/sections/ValueStack";
 import { VideoTestimonials } from "@/components/lp2/sections/VideoTestimonials";
@@ -36,9 +39,12 @@ export default function Lp2Page() {
           <Guarantee />
           <Benefits />
           <Transformations />
+          <Community />
           <VideoTestimonials />
           <PriceFounder />
           <FounderStory />
+          <OnStage />
+          <Recognition />
           <Decision />
           <FinalCta />
           <Footer />

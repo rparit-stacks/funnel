@@ -1,11 +1,13 @@
+import Image from "next/image";
 import { InView } from "@/components/lp2/InView";
 import { Lp2Section } from "@/components/lp2/ui";
 import { founder } from "@/data/funnel";
+import { media } from "@/data/media";
 
 const stats = [
-  { label: "Started", value: founder.startingWeight },
-  { label: "Lost", value: "19 kg" },
-  { label: "Helped", value: "10k+" },
+  { label: "Lost (Uma & Jagan)", value: "36 kg" },
+  { label: "Helped", value: "15,000+" },
+  { label: "Mission", value: "1M" },
 ];
 
 export function FounderStory() {
@@ -20,6 +22,18 @@ export function FounderStory() {
           <p className="lp2-body-text mt-4 max-w-sm text-[13px] leading-relaxed sm:text-[14px]">
             {founder.role}
           </p>
+
+          <div className="lp2-shot mt-6 max-w-sm">
+            <div className="relative aspect-[4/5] w-full">
+              <Image
+                src={media.team.couple}
+                alt="Dr. Uma and Jagan, co-founders of FUME"
+                fill
+                sizes="(max-width: 1024px) 90vw, 380px"
+                className="object-cover object-top"
+              />
+            </div>
+          </div>
 
           <InView className="mt-7">
             <div className="lp2-statcard grid grid-cols-3 px-2 py-6 sm:py-7">

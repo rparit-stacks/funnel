@@ -1,5 +1,5 @@
 /* LP-2 — white / black / violet, Apple-style restraint.
-   Scoped to the /lp-2 route. Every class is lp2- prefixed.
+   Scoped to the / and /checkout routes. Every class is lp2- prefixed.
    Perf rule: only transform and opacity are ever animated. */
 
 .lp2-root {

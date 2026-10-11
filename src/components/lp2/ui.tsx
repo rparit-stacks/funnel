@@ -1,4 +1,4 @@
-export const LP2_CHECKOUT = "/lp-2/checkout";
+export const LP2_CHECKOUT = "/checkout";
 
 export const LP2_WRAP_TIGHT =
   "mx-auto w-full max-w-md px-4 sm:max-w-xl sm:px-6 lg:max-w-4xl lg:px-6";

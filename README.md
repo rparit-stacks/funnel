@@ -22,5 +22,5 @@ Deploy the `funnel` folder to Vercel (recommended), Netlify, or any Next.js serv
 ## Structure
 
 - `src/app` — App Router entry (`layout.tsx`, `page.tsx`)
-- `src/components/funnel` — mobile-first UI sections
+- `src/components/lp2` — landing page (/) and checkout (/checkout) sections
 - `_reference.html` — original static HTML (reference only)

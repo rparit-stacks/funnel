@@ -18,7 +18,7 @@ export default function CheckoutPage() {
     <div className="lp2-root">
       <header className="lp2-header">
         <div className={`${LP2_WRAP_TIGHT} flex items-center justify-between gap-3 py-4 sm:py-5`}>
-          <Link href="/lp-2" className="min-w-0">
+          <Link href="/" className="min-w-0">
             <p className="text-[21px] font-black leading-none tracking-tight sm:text-[24px]">
               FUME<span className="lp2-accent">.Fit</span>
             </p>

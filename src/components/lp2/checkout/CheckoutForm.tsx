@@ -1,7 +1,30 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { funnel } from "@/data/funnel";
+
+type RzpResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
+type RzpFailure = { error?: { code?: string; description?: string; reason?: string; metadata?: { payment_id?: string } } };
+type RzpInstance = { open: () => void; on: (event: "payment.failed", cb: (r: RzpFailure) => void) => void };
+type RzpCtor = new (options: Record<string, unknown>) => RzpInstance;
+
+const SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpay(): Promise<RzpCtor | null> {
+  const w = window as unknown as { Razorpay?: RzpCtor };
+  if (w.Razorpay) return Promise.resolve(w.Razorpay);
+  return new Promise((resolve) => {
+    const el = document.createElement("script");
+    el.src = SCRIPT_SRC;
+    el.onload = () => resolve(w.Razorpay ?? null);
+    el.onerror = () => resolve(null);
+    document.body.appendChild(el);
+  });
+}
+
+const postJson = (url: string, body: unknown) =>
+  fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 const methods = [
   { id: "upi", label: "UPI", note: "GPay · PhonePe · Paytm", tag: "Fastest" },
@@ -18,6 +41,9 @@ export function CheckoutForm() {
   const [phone, setPhone] = useState("");
   const [method, setMethod] = useState<MethodId>("upi");
   const [touched, setTouched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   const nameOk = name.trim().length >= 2;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -27,12 +53,57 @@ export function CheckoutForm() {
   return (
     <form
       className="space-y-7"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         setTouched(true);
-        // Razorpay is not wired up yet — creating an order, opening checkout and
-        // verifying the payment signature all need a backend. Deliberately does
-        // not pretend the payment went through.
+        if (!valid || busy) return;
+        setBusy(true);
+        setError("");
+        try {
+          const [res, Razorpay] = await Promise.all([
+            postJson("/api/razorpay/order", { name, email, phone }),
+            loadRazorpay(),
+          ]);
+          const order = await res.json();
+          if (!res.ok || !Razorpay) throw new Error(order?.error ?? "Payment could not start");
+
+          const rzp = new Razorpay({
+            key: order.keyId,
+            order_id: order.orderId,
+            amount: order.amount,
+            currency: order.currency,
+            name: "Fume.Fit",
+            description: "1:1 Root-Cause Consultation",
+            prefill: { name: name.trim(), email: email.trim(), contact: phone.replace(/\D/g, ""), method },
+            theme: { color: "#6d28d9" },
+            handler: async (r: RzpResponse) => {
+              try {
+                const v = await postJson("/api/razorpay/verify", r);
+                if (!v.ok) throw new Error("verify failed");
+                router.push("/thank-you");
+              } catch {
+                setError("Payment received but we couldn't confirm it. Please contact support with your payment ID: " + r.razorpay_payment_id);
+                setBusy(false);
+              }
+            },
+            modal: { ondismiss: () => setBusy(false) },
+          });
+          rzp.on("payment.failed", (f) => {
+            void postJson("/api/razorpay/failed", {
+              order_id: order.orderId,
+              payment_id: f.error?.metadata?.payment_id,
+              code: f.error?.code,
+              description: f.error?.description,
+              reason: f.error?.reason,
+            });
+            setError("Payment failed. You can try again.");
+            setBusy(false);
+          });
+          rzp.open();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+          setBusy(false);
+        }
       }}
       noValidate
     >
@@ -118,8 +189,9 @@ export function CheckoutForm() {
       </div>
 
       <div className="space-y-3">
-        <button type="submit" className="lp2-btn" disabled={!valid}>
-          <span>Pay ₹{funnel.primaryOffer.price} securely</span>
+        {error ? <p className="text-center text-[12px] font-semibold text-red-600">{error}</p> : null}
+        <button type="submit" className="lp2-btn" disabled={!valid || busy}>
+          <span>{busy ? "Opening secure payment…" : `Pay ₹${funnel.primaryOffer.price} securely`}</span>
         </button>
 
         <div className="flex items-center justify-center gap-2">

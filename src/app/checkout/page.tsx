@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckoutForm } from "@/components/lp2/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/lp2/checkout/OrderSummary";
-import { ViewersNow } from "@/components/lp2/checkout/ViewersNow";
 import { Footer } from "@/components/lp2/sections/Footer";
 import { Transformations } from "@/components/lp2/sections/Transformations";
 import { LP2_WRAP_TIGHT } from "@/components/lp2/ui";
@@ -11,6 +10,7 @@ import "../lp2.css";
 export const metadata: Metadata = {
   title: "Checkout — 1:1 Root-Cause Consultation @ ₹198 | Fume.Fit",
   description: "Complete your booking for the FUME 1:1 root-cause consultation.",
+  robots: { index: false },
 };
 
 export default function CheckoutPage() {
@@ -26,7 +26,6 @@ export default function CheckoutPage() {
               Secure checkout
             </p>
           </Link>
-          <ViewersNow />
         </div>
       </header>
 

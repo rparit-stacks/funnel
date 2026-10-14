@@ -3,8 +3,8 @@ import { createOrder, razorpayKeyId } from "@/lib/razorpay";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
-  const name = String(body?.name ?? "").trim();
-  const email = String(body?.email ?? "").trim();
+  const name = String(body?.name ?? "").trim().slice(0, 100);
+  const email = String(body?.email ?? "").trim().slice(0, 200);
   const phone = String(body?.phone ?? "").replace(/\D/g, "").slice(-10);
 
   if (name.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^[6-9]\d{9}$/.test(phone)) {

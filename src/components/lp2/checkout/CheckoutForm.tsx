@@ -23,6 +23,14 @@ function loadRazorpay(): Promise<RzpCtor | null> {
   });
 }
 
+/** Accepts 9876543210, 09876543210, +91 98765 43210 -> 10 digits. */
+const normalizePhone = (raw: string) => {
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("91")) return d.slice(2);
+  if (d.length === 11 && d.startsWith("0")) return d.slice(1);
+  return d;
+};
+
 const postJson = (url: string, body: unknown) =>
   fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -47,7 +55,7 @@ export function CheckoutForm() {
 
   const nameOk = name.trim().length >= 2;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const phoneOk = /^[6-9]\d{9}$/.test(phone.replace(/\D/g, ""));
+  const phoneOk = /^[6-9]\d{9}$/.test(normalizePhone(phone));
   const valid = nameOk && emailOk && phoneOk;
 
   return (
@@ -61,7 +69,7 @@ export function CheckoutForm() {
         setError("");
         try {
           const [res, Razorpay] = await Promise.all([
-            postJson("/api/razorpay/order", { name, email, phone }),
+            postJson("/api/razorpay/order", { name: name.trim(), email: email.trim(), phone: normalizePhone(phone) }),
             loadRazorpay(),
           ]);
           const order = await res.json();
@@ -74,7 +82,7 @@ export function CheckoutForm() {
             currency: order.currency,
             name: "Fume.Fit",
             description: "1:1 Root-Cause Consultation",
-            prefill: { name: name.trim(), email: email.trim(), contact: phone.replace(/\D/g, ""), method },
+            prefill: { name: name.trim(), email: email.trim(), contact: normalizePhone(phone), method },
             theme: { color: "#6d28d9" },
             handler: async (r: RzpResponse) => {
               try {

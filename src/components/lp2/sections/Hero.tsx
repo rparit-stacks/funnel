@@ -10,7 +10,6 @@ const ACCENT_PHRASE = "Metabolic Reset Formula";
 const trustPills = [
   `₹${OFFER.price} today · was ₹${OFFER.originalPrice}`,
   "100% money-back",
-  "1:1 with an expert coach",
 ];
 
 export function Hero() {

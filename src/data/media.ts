@@ -36,6 +36,7 @@ export const media = {
     umaAward: "/images/team/uma-award.jpg",
     jaganAward: "/images/team/jagan-award.jpg",
     umaPortrait: "/images/team/uma-portrait.jpg",
+    jaganPortrait: "/images/team/stage-jagan-1.jpg",
     communityZoom: "/images/team/community-zoom.jpg",
     liveEvent: "/images/team/live-event.jpg",
     stage: [

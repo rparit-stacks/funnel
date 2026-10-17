@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { founder, funnel } from "@/data/funnel";
+import { funnel, mentors } from "@/data/funnel";
 import { media } from "@/data/media";
 
 const { price, originalPrice, name } = funnel.primaryOffer;
@@ -36,22 +36,30 @@ export function OrderSummary() {
         </div>
       </div>
 
-      {/* mentor */}
+      {/* mentors */}
       <div className="lp2-panel flex items-center gap-3.5 p-3.5 sm:p-4">
-        <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full sm:h-20 sm:w-20">
-          <Image
-            src={media.team.umaPortrait}
-            alt={founder.person}
-            fill
-            sizes="80px"
-            className="object-cover object-top"
-          />
+        <span className="flex shrink-0 -space-x-3">
+          {mentors.map((mentor) => (
+            <span
+              key={mentor.name}
+              className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-white sm:h-20 sm:w-20"
+            >
+              <Image
+                src={media.team[mentor.photo]}
+                alt={mentor.name}
+                fill
+                sizes="80px"
+                className="object-cover"
+                style={{ objectPosition: mentor.pos }}
+              />
+            </span>
+          ))}
         </span>
         <div className="min-w-0">
-          <p className="lp2-meta !text-[color:var(--lp2-body)]">Your mentor</p>
-          <p className="mt-1 text-[15px] font-black tracking-[-0.01em]">{founder.person}</p>
+          <p className="lp2-meta !text-[color:var(--lp2-body)]">Your mentors</p>
+          <p className="mt-1 text-[15px] font-black tracking-[-0.01em]">Dr. Uma &amp; Jagan</p>
           <p className="lp2-body-text mt-0.5 text-pretty text-[11.5px] leading-snug">
-            {founder.role}
+            Co-founders of FUME
           </p>
         </div>
       </div>

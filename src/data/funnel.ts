@@ -140,7 +140,7 @@ export const videoTestimonials = [
 export const founder = {
   person: "Dr. Uma",
   role: "Hormonal Health and Transformational Coach and Founder of FUME",
-  introHeadline: "Meet Dr. Uma, the Creator of the Metabolic Reset Formula",
+  introHeadline: "Meet Dr. Uma & Jagan, the Team Behind the Metabolic Reset Formula",
   story:
     "Like many of you, I faced severe health challenges that seemed impossible to overcome: diabetes, high cholesterol, Hypothyroid, and constant fatigue from working in a high-stress corporate job for 17 years.",
   previousAttempts:
@@ -153,6 +153,22 @@ export const founder = {
   philosophy: "Science-backed, sustainable solutions that work for busy professionals.",
   closing: "If I can do it, so can you!",
 };
+
+/** The two coaches shown on the checkout and the "Meet your coaches" carousel. */
+export const mentors = [
+  {
+    name: "Dr. Uma",
+    role: founder.role,
+    photo: "umaPortrait",
+    pos: "50% 25%",
+  },
+  {
+    name: "Jagan",
+    role: "Co-founder of FUME",
+    photo: "jaganPortrait",
+    pos: "52% 25%",
+  },
+] as const;
 
 export const decision = {
   headline:

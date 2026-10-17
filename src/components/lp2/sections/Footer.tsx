@@ -4,7 +4,6 @@ import { footer, founder, funnel } from "@/data/funnel";
 
 const chips = [
   `100% money-back`,
-  `1:1 with an expert coach`,
   `₹${funnel.primaryOffer.price} today`,
 ];
 

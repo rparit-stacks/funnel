@@ -5,7 +5,7 @@ import { founder } from "@/data/funnel";
 import { media } from "@/data/media";
 
 const stats = [
-  { label: "Lost (Uma & Jagan)", value: "36 kg" },
+  { label: "Lost", value: "36 kg" },
   { label: "Helped", value: "15,000+" },
   { label: "Mission", value: "1M" },
 ];
@@ -17,7 +17,7 @@ export function FounderStory() {
         {/* left: identity + scoreboard */}
         <div className="lg:sticky lg:top-28">
           <p className="lp2-meta">The story</p>
-          <h2 className="lp2-h2 mt-3">{founder.person}</h2>
+          <h2 className="lp2-h2 mt-3">Dr. Uma &amp; Jagan</h2>
           <span className="lp2-accentbar mt-4 block" />
           <p className="lp2-body-text mt-4 max-w-sm text-[13px] leading-relaxed sm:text-[14px]">
             {founder.role}

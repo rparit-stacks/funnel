@@ -5,7 +5,7 @@ const { price, originalPrice, name } = funnel.primaryOffer;
 const savePercent = Math.round((1 - price / originalPrice) * 100);
 
 const included = [
-  `${name} with Dr. Uma`,
+  `${name} with Dr. Uma & Jagan`,
   `Bonus toolkit worth ₹${funnel.pricing.bonusTotalValue.toLocaleString("en-IN")}`,
   "100% money-back guarantee",
 ];

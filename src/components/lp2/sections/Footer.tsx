@@ -29,15 +29,17 @@ export function Footer() {
 
           <nav className="flex flex-col gap-3 md:items-end">
             <p className="lp2-meta">Legal</p>
-            {footer.links.map((link) => (
-              <a
-                key={link}
-                href={`#${link.toLowerCase().replace(/\s+/g, "-")}`}
-                className="lp2-flink"
-              >
-                {link}
-              </a>
-            ))}
+            {footer.links.map((link) => {
+              const href =
+                link === "Privacy Policy"
+                  ? "/privacy-policy"
+                  : `#${link.toLowerCase().replace(/\s+/g, "-")}`;
+              return (
+                <a key={link} href={href} className="lp2-flink">
+                  {link}
+                </a>
+              );
+            })}
           </nav>
         </div>
 

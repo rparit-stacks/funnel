@@ -3,12 +3,11 @@ import { HeroVideo } from "@/components/lp2/HeroVideo";
 import { Lp2Button, Lp2Eyebrow, Lp2Section } from "@/components/lp2/ui";
 import { funnel, heroContent } from "@/data/funnel";
 import { media } from "@/data/media";
-import { OFFER } from "@/data/offer";
 
 const ACCENT_PHRASE = "Metabolic Reset Formula";
 
 const trustPills = [
-  `₹${OFFER.price} today · was ₹${OFFER.originalPrice}`,
+  "100% money back",
   "100% money-back",
 ];
 

@@ -1,0 +1,1941 @@
+{
+  "meta": {
+    "title": "Unified Funnel Platform - Scope, Architecture and Replacement Plan",
+    "document_type": "Product and engineering proposal (structured)",
+    "version": "0.1-draft",
+    "date": "2026-10-17",
+    "status": "Draft for client discussion. Nothing in this document is built yet.",
+    "audience": "Business owners and decision makers first; engineers second. Plain wording is used on purpose.",
+    "language": "English",
+    "how_to_read": [
+      "Section 'summary' gives the whole idea in a few lines.",
+      "Section 'current_state' describes what exists today, taken from the actual funnel code.",
+      "Sections 'platform_structure' and 'roles_and_access' describe how the product is organised and who sees what.",
+      "Section 'modules' lists everything we propose to build, one module at a time.",
+      "Sections 'what_we_replace' and 'what_we_do_not_replace' are the honest boundary of the project.",
+      "Sections 'flows' and 'architecture' explain how it runs.",
+      "Sections 'phases', 'dependencies_and_running_costs', 'risks' and 'open_questions' are for planning and sign-off."
+    ],
+    "assumptions_flagged": [
+      "Razorpay stays as the single payment gateway. It was named as the payment integration in the brief. If the intent is to remove Razorpay as well, see open_questions Q1.",
+      "How a landing page connects to the central platform is decided by the client. This document proposes a default and keeps the connector replaceable. See modules.landing_page_connector.",
+      "All tracking, workflow, lead storage and reporting are built in-house and run on the client's own infrastructure."
+    ]
+  },
+  "summary": {
+    "one_line": "One self-owned platform where every landing page, every payment, every lead and every follow-up lives, replacing a stack of paid third-party tools and Excel sheets.",
+    "problem_today": [
+      "Each brand or landing page is built and run with a different mix of tools: a workflow tool (Pabbly), a tracking tool (Trackify-style), spreadsheets, and separate dashboards.",
+      "Every tool is a separate subscription, and every client pays for them separately, month after month.",
+      "Lead and payment data ends up in Excel. Sales teams work from spreadsheets, so there is no single source of truth, no access control and no audit trail.",
+      "Nobody can see in one place which landing page, ad or campaign actually produced revenue.",
+      "Automations (success message, failure message, follow-up) live inside a third-party tool that the client does not own and cannot easily inspect."
+    ],
+    "proposed_solution": [
+      "A central platform with a Super Admin on top, brands under it, and many landing pages under each brand.",
+      "Each landing page connects to the platform using a defined connection method and its own configuration (offer, price, payment keys, workflow, tracking).",
+      "Every visit, lead, payment attempt, payment result and follow-up is stored in the platform's own database and shown on dashboards.",
+      "Role-based access: Super Admin, Management, Manager, Sales and Developer each see only what their role allows, enforced on the server.",
+      "An in-house workflow engine replaces Pabbly. An in-house first-party tracking system replaces Trackify-style tools. Excel is replaced by dashboards plus on-demand export.",
+      "Razorpay (payments), the WhatsApp Business API, and the ad platforms (Meta, Google) remain external because they cannot be self-hosted. They are integrated directly, with no middle tool."
+    ],
+    "expected_outcomes": [
+      "One login and one dashboard for sales, managers, management and developers.",
+      "No monthly subscriptions for workflow or tracking tools.",
+      "Complete lead and payment history per landing page, including failed payments and abandoned checkouts.",
+      "Revenue attributed to campaigns and ads.",
+      "Configuration of a new landing page without developer involvement once the connector is in place.",
+      "Data owned by the client, on the client's infrastructure."
+    ],
+    "what_this_is_not": [
+      "It is not a replacement for Razorpay, WhatsApp, Meta Ads or Google Ads themselves.",
+      "It is not a general website builder like Wix or Webflow in phase 1. Landing pages are still built as code and then connected.",
+      "It is not free to run. Hosting, payment gateway fees and WhatsApp conversation charges continue. Only the tool subscriptions go away."
+    ]
+  },
+  "current_state": {
+    "source": "Read from the 'funnel' project folder on 2026-10-17.",
+    "project": {
+      "name": "FUME Funnel (FUME.Fit)",
+      "framework": "Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4",
+      "purpose": "Mobile-first VSL landing page for paid traffic from Meta (Facebook and Instagram) selling a 1:1 Root-Cause Consultation.",
+      "offer": {
+        "price_inr": 198,
+        "original_price_inr": 999,
+        "countdown_seconds": 300,
+        "refund_policy": "Refund if the session is not useful",
+        "cta_anchor": "#consultation-form"
+      },
+      "deployment": "Serverless friendly (Vercel recommended). Home page is lp-2.",
+      "git_history_signals": [
+        "Home page switched to lp-2; old base site dropped.",
+        "Razorpay checkout and Pabbly webhooks added.",
+        "Checkout hardened: phone normalisation, field length caps, noindex, fake live-viewer count removed."
+      ]
+    },
+    "routes": [
+      {
+        "path": "/",
+        "description": "Landing page lp-2 (hero video, offer, bonuses, value stack, guarantee, testimonials, founder, decision, final CTA)."
+      },
+      {
+        "path": "/lp-1",
+        "description": "Alternative landing page variant lp-1 with its own styles and sections."
+      },
+      {
+        "path": "/checkout",
+        "description": "Checkout form (name, email, phone) that opens Razorpay."
+      },
+      {
+        "path": "/thank-you",
+        "description": "Static confirmation page after payment."
+      },
+      {
+        "path": "/api/razorpay/order",
+        "description": "Creates a Razorpay order (amount in rupees converted to paise) with customer details stored in order notes."
+      },
+      {
+        "path": "/api/razorpay/verify",
+        "description": "Verifies the Razorpay signature (HMAC SHA-256) and then notifies Pabbly of success."
+      },
+      {
+        "path": "/api/razorpay/failed",
+        "description": "Called when Razorpay reports payment.failed; reads customer details back from the order notes and notifies Pabbly of failure."
+      }
+    ],
+    "payment_flow_today": [
+      "Visitor fills name, email and phone on /checkout.",
+      "The page calls /api/razorpay/order. The server creates a Razorpay order and returns order id and key id.",
+      "Razorpay Checkout opens in the browser.",
+      "On success the browser posts the three Razorpay values to /api/razorpay/verify. The server checks the signature, fetches the order, and posts a success payload to a Pabbly Connect webhook.",
+      "On failure the browser posts to /api/razorpay/failed. The server posts a failure payload to a second Pabbly webhook.",
+      "Everything after that (sheet rows, WhatsApp, email, follow-up) happens inside Pabbly and connected tools, not in this codebase."
+    ],
+    "secrets_in_use": [
+      "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (server side environment variables).",
+      "PABBLY_SUCCESS_WEBHOOK_URL and PABBLY_FAILURE_WEBHOOK_URL."
+    ],
+    "gaps_in_current_build": [
+      "No database. Nothing is stored by the funnel itself; all records live in Pabbly or downstream tools.",
+      "No lead capture before payment. A visitor who never pays is not recorded at all.",
+      "No authentication, no users, no roles, no dashboard.",
+      "No first-party tracking. No UTM, fbclid or gclid capture is stored; no event stream.",
+      "No webhook from Razorpay to the server. If the customer closes the tab after paying, the success path may never run.",
+      "Customer details are carried in Razorpay order notes only.",
+      "No retry or monitoring on the Pabbly calls; failures are only logged to the console.",
+      "One landing page per deployment; no shared configuration across pages."
+    ]
+  },
+  "pain_points": [
+    {
+      "id": "P1",
+      "title": "Tool sprawl and recurring cost",
+      "detail": "Workflow, tracking and data tools are paid separately, per client, every month.",
+      "who_feels_it": "Business owners"
+    },
+    {
+      "id": "P2",
+      "title": "Excel as the system of record",
+      "detail": "Sales works from spreadsheets that are copied, edited and shared with no control.",
+      "who_feels_it": "Sales, managers"
+    },
+    {
+      "id": "P3",
+      "title": "No access control",
+      "detail": "A sheet is either shared or not. A salesperson cannot be limited to their own leads.",
+      "who_feels_it": "Management"
+    },
+    {
+      "id": "P4",
+      "title": "No single view of performance",
+      "detail": "Revenue, leads and ad spend sit in different places, so campaign profitability is guesswork.",
+      "who_feels_it": "Management, marketing"
+    },
+    {
+      "id": "P5",
+      "title": "Lost leads",
+      "detail": "Visitors who start but do not finish checkout are not stored anywhere.",
+      "who_feels_it": "Sales, owners"
+    },
+    {
+      "id": "P6",
+      "title": "Fragile automation",
+      "detail": "If a Pabbly step fails nobody is alerted and the customer silently gets nothing.",
+      "who_feels_it": "Support, owners"
+    },
+    {
+      "id": "P7",
+      "title": "Vendor dependence",
+      "detail": "Workflows live in a vendor tool the client does not own.",
+      "who_feels_it": "Owners, developers"
+    },
+    {
+      "id": "P8",
+      "title": "Slow launch of new pages",
+      "detail": "Every new landing page needs developer time to wire payments, tracking and automations again.",
+      "who_feels_it": "Marketing, developers"
+    }
+  ],
+  "goals": [
+    "Give every brand one central dashboard, with a dashboard per landing page.",
+    "Capture every lead, payment attempt and event in a database the client owns.",
+    "Enforce role-based visibility on the server, so a salesperson only ever sees their own leads.",
+    "Replace Pabbly with an in-house workflow engine.",
+    "Replace Trackify-style tracking with in-house first-party tracking.",
+    "Replace Excel with dashboards, filters and export on demand.",
+    "Integrate Razorpay and WhatsApp directly, with no automation middleman.",
+    "Make adding a new landing page a configuration task instead of a development task.",
+    "Give the Super Admin full control over what data goes where."
+  ],
+  "non_goals": [
+    "Building our own payment gateway or moving money.",
+    "Becoming a WhatsApp provider; we integrate with the official Business API.",
+    "Replacing Meta Ads Manager or Google Ads.",
+    "A drag-and-drop landing page designer in phase 1.",
+    "A public marketplace or multi-tenant SaaS billing system in phase 1.",
+    "Native mobile apps in phase 1; the dashboard is responsive web."
+  ],
+  "platform_structure": {
+    "hierarchy": [
+      {
+        "level": 1,
+        "name": "Platform",
+        "description": "The whole product. Owned and administered by the Super Admin."
+      },
+      {
+        "level": 2,
+        "name": "Brand (client)",
+        "description": "A business using the platform, for example FUME. A brand has its own users, branding, integrations and landing pages. Data of one brand is never visible to another brand."
+      },
+      {
+        "level": 3,
+        "name": "Landing page",
+        "description": "One funnel with its own URL, offer, payment configuration, workflow, tracking settings and content. A brand can have many landing pages."
+      },
+      {
+        "level": 4,
+        "name": "Lead / customer",
+        "description": "A person who interacted with a landing page. Holds contact details, source, events, payments, notes and status."
+      }
+    ],
+    "dashboards": [
+      {
+        "name": "Platform dashboard (Super Admin)",
+        "shows": [
+          "All brands and their health",
+          "All landing pages across brands",
+          "User and role management",
+          "Integration settings and routing rules",
+          "System health, queue status, failures",
+          "Audit log"
+        ],
+        "opens_from": "Login as Super Admin"
+      },
+      {
+        "name": "Brand dashboard",
+        "shows": [
+          "All landing pages of the brand as cards with key numbers",
+          "Brand level revenue, leads, conversion",
+          "Team performance",
+          "Brand settings and branding"
+        ],
+        "opens_from": "Login as Management, or Super Admin selecting a brand"
+      },
+      {
+        "name": "Landing page dashboard",
+        "shows": [
+          "Leads and payments of that page",
+          "Funnel and drop-off",
+          "Traffic sources and campaigns",
+          "Workflow editor and run history",
+          "Tracking setup and ad instructions",
+          "Page content and configuration",
+          "Exports"
+        ],
+        "opens_from": "Clicking a landing page card on the brand dashboard"
+      },
+      {
+        "name": "Sales workspace",
+        "shows": [
+          "Only the leads assigned to the logged-in salesperson",
+          "Follow-up tasks, notes, call and WhatsApp actions",
+          "Own targets and performance"
+        ],
+        "opens_from": "Login as Sales"
+      }
+    ],
+    "navigation_rule": "The same application serves everyone. The menu and the data change by role. There is no separate app for sales, developers or management."
+  },
+  "roles_and_access": {
+    "principles": [
+      "Every screen and every API call requires authentication. There are no anonymous dashboard endpoints.",
+      "Authorisation is enforced on the server for every request. Hiding a button in the interface is never the only protection.",
+      "Data is scoped by brand first, then by role. A user can only ever reach data of brands they belong to.",
+      "Sales users see only leads assigned to them. They cannot list, search or open any other lead, even by guessing a URL or an id.",
+      "The Super Admin defines roles, permissions, and where each kind of data is routed.",
+      "Every sensitive action (login, export, permission change, lead reassignment, configuration change) is written to an audit log."
+    ],
+    "roles": [
+      {
+        "key": "super_admin",
+        "label": "Super Admin",
+        "who": "Platform owner.",
+        "can": [
+          "Create and suspend brands and landing pages",
+          "Create users and assign roles and brands",
+          "Define custom permissions and routing rules",
+          "Configure integrations (payments, WhatsApp, email, tracking) for any brand",
+          "See every lead, payment, event and report across all brands",
+          "Read the full audit log",
+          "Run exports and data deletion requests",
+          "Impersonate a role in read-only preview mode to verify what that role sees"
+        ],
+        "cannot": [
+          "Nothing is blocked, but every action is logged."
+        ]
+      },
+      {
+        "key": "management",
+        "label": "Management",
+        "who": "Brand owner or leadership.",
+        "can": [
+          "See all landing pages, leads, payments and reports of their brand(s)",
+          "See performance of every manager and salesperson",
+          "Edit landing page configuration and workflows if the Super Admin grants it",
+          "Export data of their brand(s)",
+          "Reassign leads between managers and salespeople"
+        ],
+        "cannot": [
+          "See other brands",
+          "Change platform-wide settings",
+          "Manage Super Admin accounts"
+        ]
+      },
+      {
+        "key": "manager",
+        "label": "Manager",
+        "who": "Team lead for a group of salespeople.",
+        "can": [
+          "See leads assigned to themselves and to the salespeople in their team",
+          "Assign and reassign leads inside their team",
+          "See performance of their own team",
+          "Add notes, tasks and statuses",
+          "Export their team's leads if permitted"
+        ],
+        "cannot": [
+          "See leads of other teams",
+          "See revenue of the whole brand unless granted",
+          "Edit workflows or integrations"
+        ]
+      },
+      {
+        "key": "sales",
+        "label": "Sales",
+        "who": "Salesperson doing follow-ups.",
+        "can": [
+          "See only leads assigned to them",
+          "Update status, add notes, schedule follow-ups",
+          "Trigger allowed actions such as sending a WhatsApp template",
+          "See their own targets and performance"
+        ],
+        "cannot": [
+          "See any lead not assigned to them",
+          "See other salespeople's numbers",
+          "Export data unless explicitly granted",
+          "See configuration or integration screens"
+        ]
+      },
+      {
+        "key": "developer",
+        "label": "Developer",
+        "who": "Engineer connecting landing pages and maintaining workflows.",
+        "can": [
+          "Create and rotate landing page keys and API credentials",
+          "Edit workflows and integration settings",
+          "See event logs, webhook deliveries, workflow run logs and error traces",
+          "Use a test mode with sandbox payments and test leads"
+        ],
+        "cannot": [
+          "See full customer personal data by default (masked unless the Super Admin grants it)",
+          "See payments of live customers in detail unless granted"
+        ]
+      }
+    ],
+    "permission_matrix": {
+      "legend": "Y = allowed, N = not allowed, Own = only own records, Team = own plus team records, Brand = whole brand, All = whole platform, Cfg = allowed if the Super Admin grants",
+      "rows": [
+        {
+          "capability": "View leads",
+          "super_admin": "All",
+          "management": "Brand",
+          "manager": "Team",
+          "sales": "Own",
+          "developer": "Masked"
+        },
+        {
+          "capability": "Edit lead status and notes",
+          "super_admin": "Y",
+          "management": "Y",
+          "manager": "Team",
+          "sales": "Own",
+          "developer": "N"
+        },
+        {
+          "capability": "Assign or reassign leads",
+          "super_admin": "Y",
+          "management": "Y",
+          "manager": "Team",
+          "sales": "N",
+          "developer": "N"
+        },
+        {
+          "capability": "View payments",
+          "super_admin": "All",
+          "management": "Brand",
+          "manager": "Team",
+          "sales": "Own",
+          "developer": "Masked"
+        },
+        {
+          "capability": "Issue refund",
+          "super_admin": "Y",
+          "management": "Cfg",
+          "manager": "N",
+          "sales": "N",
+          "developer": "N"
+        },
+        {
+          "capability": "View brand revenue reports",
+          "super_admin": "All",
+          "management": "Brand",
+          "manager": "Cfg",
+          "sales": "N",
+          "developer": "N"
+        },
+        {
+          "capability": "View team performance",
+          "super_admin": "All",
+          "management": "Brand",
+          "manager": "Team",
+          "sales": "Own",
+          "developer": "N"
+        },
+        {
+          "capability": "Edit workflows",
+          "super_admin": "Y",
+          "management": "Cfg",
+          "manager": "N",
+          "sales": "N",
+          "developer": "Y"
+        },
+        {
+          "capability": "Edit landing page content and offer",
+          "super_admin": "Y",
+          "management": "Cfg",
+          "manager": "N",
+          "sales": "N",
+          "developer": "Y"
+        },
+        {
+          "capability": "Manage integrations and keys",
+          "super_admin": "Y",
+          "management": "N",
+          "manager": "N",
+          "sales": "N",
+          "developer": "Y"
+        },
+        {
+          "capability": "Export to Excel or CSV",
+          "super_admin": "All",
+          "management": "Brand",
+          "manager": "Cfg",
+          "sales": "Cfg",
+          "developer": "N"
+        },
+        {
+          "capability": "Manage users and roles",
+          "super_admin": "Y",
+          "management": "Cfg",
+          "manager": "N",
+          "sales": "N",
+          "developer": "N"
+        },
+        {
+          "capability": "Read audit log",
+          "super_admin": "All",
+          "management": "Brand",
+          "manager": "N",
+          "sales": "N",
+          "developer": "N"
+        }
+      ]
+    },
+    "authentication": {
+      "methods": [
+        "Email and password with strong password rules",
+        "One-time code by email or WhatsApp as a second factor (recommended for Super Admin and Management)",
+        "Optional Google sign-in for staff"
+      ],
+      "sessions": [
+        "Short-lived access tokens with refresh",
+        "Automatic logout after inactivity",
+        "Device and session list with remote revoke",
+        "Rate limiting and lockout on repeated failures"
+      ],
+      "account_lifecycle": [
+        "Invite by email, forced password set on first login",
+        "Deactivate instantly on exit; leads are reassigned",
+        "Role changes take effect on the next request"
+      ]
+    },
+    "lead_visibility_rules": [
+      "A lead belongs to exactly one brand and one landing page.",
+      "A lead has at most one current owner (a salesperson or unassigned).",
+      "Sales sees: leads where owner is the user.",
+      "Manager sees: leads where owner is the manager or any member of the manager's team.",
+      "Management sees: all leads of the brand.",
+      "Super Admin sees: everything.",
+      "Unassigned leads are visible to Manager and above and to a configurable shared queue for Sales if the Super Admin enables it.",
+      "Reassigning a lead immediately removes it from the previous owner's view."
+    ]
+  },
+  "modules": [
+    {
+      "id": "M1",
+      "name": "Landing page connector",
+      "phase": 1,
+      "summary": "The bridge between a landing page and the central platform. Defines how a page registers, authenticates, sends data and receives configuration.",
+      "replaces": "Per-page hard-coded wiring (Razorpay routes and Pabbly URLs copied into every funnel project).",
+      "connection_method": {
+        "status": "To be defined by the client. The connector is built behind one interface so the method can change without touching the rest of the platform.",
+        "default_proposal": [
+          "Each landing page gets a public page key and a secret server key issued from its dashboard.",
+          "Browser side: a small first-party script sends tracking events and form submissions to the platform using the public key.",
+          "Server side: the landing page backend calls the platform API with the secret key for trusted actions such as creating an order or reading page configuration.",
+          "Configuration is fetched by the page at build or request time, so price, countdown, bonuses and copy can change from the dashboard without a redeploy."
+        ],
+        "alternatives_considered": [
+          {
+            "name": "Embed script only",
+            "pros": [
+              "Fastest to adopt",
+              "Works with any stack"
+            ],
+            "cons": [
+              "Less control over checkout security",
+              "Harder to guarantee payment correctness"
+            ]
+          },
+          {
+            "name": "Server API only",
+            "pros": [
+              "Strongest security",
+              "Full control"
+            ],
+            "cons": [
+              "Every page needs backend code"
+            ]
+          },
+          {
+            "name": "Hosted pages inside the platform",
+            "pros": [
+              "No connection step at all"
+            ],
+            "cons": [
+              "Bigger build",
+              "Not needed for phase 1"
+            ]
+          }
+        ]
+      },
+      "features": [
+        "Register a landing page: name, brand, domain(s), environment (test or live), status.",
+        "Issue, rotate and revoke page keys and secrets.",
+        "Allowed-origin list per page so only the page's own domains can send browser events.",
+        "Signed requests with timestamp and replay protection for server calls.",
+        "Page configuration endpoint returning offer, pricing, payment settings reference, tracking ids and content blocks.",
+        "Health check per page: last event received, last payment, error counts.",
+        "Test mode that routes to Razorpay test keys and marks data as test.",
+        "Versioned API so existing pages keep working when the platform evolves.",
+        "Starter kit: a ready Next.js module that drops into a funnel project and handles checkout, events and form submission."
+      ],
+      "acceptance": [
+        "A new landing page can be registered and sending data within one working session of a developer.",
+        "Revoking a key stops that page's traffic immediately.",
+        "A request with a bad signature or from a disallowed origin is rejected and logged."
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Leads and CRM",
+      "phase": 1,
+      "summary": "A single database of every person who touched a landing page, replacing Excel as the working tool for sales.",
+      "replaces": "Excel and Google Sheet lead files.",
+      "features": [
+        "Lead record: name, email, phone (normalised), brand, landing page, source, UTM, campaign, ad, device, location (city level), first seen, last seen.",
+        "Lead creation at the earliest moment: form submit or checkout start, not only after payment.",
+        "De-duplication by phone and email with merge history.",
+        "Status pipeline: New, Contacted, Interested, Paid, Refunded, Not interested, Lost. Statuses are configurable per brand.",
+        "Tags and custom fields per brand.",
+        "Notes and activity timeline: events, payments, messages, calls, status changes.",
+        "Assignment: manual, round robin, or rule based (for example by landing page or city).",
+        "Follow-up tasks with due dates and reminders.",
+        "Saved views and filters: by page, source, status, owner, date, payment state.",
+        "Bulk actions: assign, tag, change status, send a template (permission permitting).",
+        "Strict visibility by role as defined in roles_and_access.",
+        "Search by name, phone or email, limited to what the role may see."
+      ],
+      "acceptance": [
+        "A salesperson who searches for a lead assigned to someone else gets no result, and a direct URL to it returns not found.",
+        "A visitor who starts checkout and never pays appears as a lead with state 'checkout started'.",
+        "Every status or owner change appears in the lead's timeline with who and when."
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "Payments with Razorpay",
+      "phase": 1,
+      "summary": "Direct Razorpay integration with orders, signature verification, webhooks, failures and refunds, written to the platform database.",
+      "replaces": "The Pabbly success and failure webhooks as the only record of payments.",
+      "keeps": "Razorpay itself as the gateway.",
+      "features": [
+        "Per landing page Razorpay configuration (key id and encrypted secret), with test and live modes.",
+        "Server-created orders with the amount taken from the page configuration, never from the browser.",
+        "Signature verification on the success callback.",
+        "Razorpay webhook endpoint for payment.captured, payment.failed, order.paid and refund events, so payment is recorded even if the customer closes the tab.",
+        "Idempotent processing: the same event delivered twice creates one payment record.",
+        "Payment states: created, attempted, captured, failed, refunded, partially refunded.",
+        "Failure reasons captured from Razorpay and shown to sales for follow-up.",
+        "Refund from the dashboard (permission controlled) calling the Razorpay refund API.",
+        "Reconciliation view: platform records versus Razorpay, with mismatches flagged.",
+        "Invoice or receipt generation per payment, with brand details and GST fields where applicable.",
+        "No card data ever touches the platform; only Razorpay ids and statuses are stored."
+      ],
+      "acceptance": [
+        "A captured payment appears on the lead and on the landing page dashboard within seconds, without any third-party tool.",
+        "Closing the browser right after paying still results in a recorded payment through the webhook.",
+        "Duplicate webhook delivery does not double count revenue."
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "Workflow engine",
+      "phase": 2,
+      "summary": "An in-house automation engine that runs the sequences currently built inside Pabbly.",
+      "replaces": "Pabbly Connect.",
+      "features": [
+        "Triggers: lead created, form submitted, checkout started, checkout abandoned after N minutes, payment captured, payment failed, refund issued, status changed, tag added, scheduled time.",
+        "Actions: send WhatsApp template, send email, send SMS (if a provider is configured), assign lead, create follow-up task, change status, add tag, call an external webhook, wait, branch on a condition, stop.",
+        "Conditions: by landing page, source, amount, city, tag, status, time of day.",
+        "Visual or form-based editor with a readable summary of each workflow.",
+        "Per landing page workflows plus brand-wide default workflows that pages can inherit.",
+        "Test mode: run a workflow against a test lead and see each step.",
+        "Run history for every execution: input, each step result, timing, error.",
+        "Automatic retries with backoff; permanent failures raise an alert to the Developer and Super Admin.",
+        "Rate limits and quiet hours so messages are not sent at night.",
+        "Versioning: edits create a new version; running executions finish on the version they started with.",
+        "Import of the existing Pabbly flow structure as a starting template, rebuilt by us, not executed through Pabbly."
+      ],
+      "example_workflows": [
+        {
+          "name": "Payment success",
+          "steps": [
+            "Trigger: payment captured",
+            "Mark lead as Paid",
+            "Send WhatsApp confirmation template",
+            "Send email receipt",
+            "Assign to a salesperson by round robin",
+            "Create task: call within 2 hours"
+          ]
+        },
+        {
+          "name": "Payment failed",
+          "steps": [
+            "Trigger: payment failed",
+            "Wait 10 minutes",
+            "Send WhatsApp message with a retry link",
+            "If still unpaid after 24 hours, assign for a call"
+          ]
+        },
+        {
+          "name": "Abandoned checkout",
+          "steps": [
+            "Trigger: checkout started and no payment after 15 minutes",
+            "Send WhatsApp reminder",
+            "Wait 1 day",
+            "Send final reminder",
+            "Tag as abandoned"
+          ]
+        }
+      ],
+      "acceptance": [
+        "A workflow failure is visible in run history and triggers an alert; nothing fails silently.",
+        "Editing a workflow does not interrupt executions already in progress."
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "WhatsApp integration",
+      "phase": 2,
+      "summary": "Direct integration with the official WhatsApp Business API for template messages, replies and delivery status.",
+      "replaces": "WhatsApp steps inside Pabbly and manual WhatsApp from personal phones.",
+      "keeps": "The WhatsApp Business API provider (Meta Cloud API or an approved business solution provider).",
+      "features": [
+        "Connect a WhatsApp Business number per brand.",
+        "Template management: create, submit for approval, track approval status.",
+        "Send templates from workflows and manually from a lead.",
+        "Inbound messages shown on the lead timeline when the customer replies.",
+        "Delivery, read and failure status per message.",
+        "Opt-in tracking: store when and how the customer agreed to be messaged.",
+        "Opt-out handling: stop messaging on request.",
+        "Message cost visibility per brand so conversation charges are not a surprise.",
+        "Per role permission: sales can send only approved templates to their own leads."
+      ],
+      "acceptance": [
+        "A paid customer receives the confirmation template automatically, and the delivery status appears on the lead.",
+        "A customer who opts out is never messaged again by any workflow."
+      ],
+      "external_dependency": "Meta business verification and template approval take time and are outside our control."
+    },
+    {
+      "id": "M6",
+      "name": "Email and SMS notifications",
+      "phase": 2,
+      "summary": "Transactional and follow-up email and optional SMS from the platform.",
+      "replaces": "Email and SMS steps inside Pabbly.",
+      "keeps": "An email delivery provider and, if used, an SMS provider (these cannot be self-hosted reliably).",
+      "features": [
+        "Email templates with brand logo and colours.",
+        "Receipt and confirmation emails after payment.",
+        "Internal alerts to staff: new paid lead, failed workflow, daily summary.",
+        "Delivery and bounce tracking.",
+        "Unsubscribe handling for non-transactional mail.",
+        "SMS for OTP and urgent reminders where a provider is configured."
+      ]
+    },
+    {
+      "id": "M7",
+      "name": "First-party tracking",
+      "phase": 3,
+      "summary": "An in-house tracking system, similar in purpose to Trackify, that records visitor behaviour and attributes revenue to its source.",
+      "replaces": "Trackify-style third-party tracking tools.",
+      "features": [
+        "A lightweight script served from the client's own domain, sending events to the platform.",
+        "Events: page view, scroll depth, video play, video progress milestones, CTA click, form start, form submit, checkout start, payment attempt, payment success, payment failure.",
+        "Visitor and session identifiers using first-party storage, respecting consent settings.",
+        "Capture of UTM parameters, fbclid, gclid, referrer, landing URL, device type, browser, approximate city.",
+        "First-touch and last-touch attribution stored on the lead and on each payment.",
+        "Server-side events for payments, so revenue is tracked even if the browser closes.",
+        "Forwarding of conversions to Meta Conversions API and Google Ads or GA4, configured from the dashboard, with event de-duplication.",
+        "Event debugger: see live events from a page while testing.",
+        "Per landing page instructions for connecting Meta Ads and Google Ads, shown inside the dashboard.",
+        "Bot and duplicate traffic filtering.",
+        "Data retention settings."
+      ],
+      "acceptance": [
+        "For any payment, the dashboard shows the campaign and ad that first brought the visitor and the one that last touched them.",
+        "A conversion sent to Meta is also stored locally, and a mismatch is flagged."
+      ],
+      "external_dependency": "Meta and Google must still receive conversion events for ad optimisation. That is outbound data to them, not a replacement of them."
+    },
+    {
+      "id": "M8",
+      "name": "Analytics and reporting",
+      "phase": 3,
+      "summary": "Dashboards for management and managers covering funnel, revenue, sources and team performance.",
+      "replaces": "Manual reporting in spreadsheets.",
+      "features": [
+        "Per landing page: visitors, leads, checkout starts, payments, revenue, conversion rate at each step.",
+        "Funnel drop-off with step-by-step percentages.",
+        "Video engagement: plays and watch milestones for VSL pages.",
+        "Source breakdown: by UTM source, campaign and ad, including revenue and cost per acquisition when ad cost is entered or imported.",
+        "Return on ad spend where spend is available.",
+        "Team performance: leads handled, contact rate, conversion, revenue by salesperson and manager.",
+        "Date range, comparison with previous period, and filters by brand and page.",
+        "Scheduled summary emails (daily or weekly) per role.",
+        "Role-aware numbers: a salesperson sees only their own numbers."
+      ]
+    },
+    {
+      "id": "M9",
+      "name": "Landing page content and configuration",
+      "phase": 3,
+      "summary": "Edit offer and page content from the dashboard instead of changing code.",
+      "replaces": "Editing constants in the funnel codebase (price, countdown, bonuses, testimonials).",
+      "features": [
+        "Offer settings: price, original price, countdown length, CTA labels, refund text.",
+        "Content blocks: headline, subheadline, bonuses, benefits, testimonials, FAQs, founder story.",
+        "Media library: images and video links reused across pages.",
+        "Draft and publish with preview.",
+        "Version history and rollback.",
+        "Clone a landing page configuration to start a new one.",
+        "Simple A/B test: split traffic between two versions of a page and compare conversion."
+      ],
+      "note": "Page layouts are still built as code in phase 1. The dashboard controls the content and offer that the layout renders."
+    },
+    {
+      "id": "M10",
+      "name": "Exports and data portability",
+      "phase": 1,
+      "summary": "Excel and CSV export on demand, replacing the habit of living inside spreadsheets.",
+      "replaces": "Excel as the primary store.",
+      "features": [
+        "Export leads, payments, events and reports to CSV or Excel.",
+        "Exports respect role scope: a user can only export what they can see.",
+        "Column selection and saved export templates.",
+        "Large exports run in the background and arrive as a download link.",
+        "Every export is audit logged with user, filter and row count.",
+        "Optional watermarking or masking of phone numbers for lower roles."
+      ]
+    },
+    {
+      "id": "M11",
+      "name": "Super Admin console",
+      "phase": 1,
+      "summary": "Central control: brands, pages, users, roles, routing and system health.",
+      "replaces": "Ad hoc setup spread across many tools.",
+      "features": [
+        "Create and suspend brands and landing pages.",
+        "Invite users and assign role and brand.",
+        "Routing rules: which data from which page goes to which team, workflow or integration.",
+        "Integration vault: encrypted storage of Razorpay, WhatsApp, email and tracking credentials.",
+        "System health: queue depth, failed jobs, webhook delivery status, error rates.",
+        "Feature flags per brand to switch modules on or off.",
+        "Data retention and deletion requests.",
+        "Read-only role preview to verify what a role sees."
+      ]
+    },
+    {
+      "id": "M12",
+      "name": "Audit log and security",
+      "phase": 1,
+      "summary": "A tamper-evident record of who did what, plus the security controls around it.",
+      "features": [
+        "Log of logins, failed logins, permission changes, configuration edits, exports, refunds, lead reassignments.",
+        "Filter by user, action, brand and time.",
+        "Encrypted secrets, hashed passwords, TLS everywhere.",
+        "Per-IP and per-account rate limits.",
+        "Optional IP allow list for Super Admin.",
+        "Backups with tested restore.",
+        "Data masking for roles that do not need full contact details."
+      ]
+    },
+    {
+      "id": "M13",
+      "name": "Branding and white label",
+      "phase": 4,
+      "summary": "Each brand sees its own logo and colours in the dashboard and in messages.",
+      "features": [
+        "Logo, colours and name per brand.",
+        "Custom domain for the dashboard per brand.",
+        "Brand-specific email and WhatsApp sender details.",
+        "Receipts and invoices with the brand's identity."
+      ]
+    },
+    {
+      "id": "M14",
+      "name": "Developer tools",
+      "phase": 2,
+      "summary": "Everything a developer needs to connect and debug a landing page.",
+      "features": [
+        "Key and secret management per page.",
+        "Live event stream and webhook delivery log.",
+        "Workflow run traces.",
+        "Test mode and sample data generator.",
+        "API documentation with examples.",
+        "Sandbox that mimics Razorpay events for end-to-end testing.",
+        "Starter kit and a checklist for connecting a new page."
+      ]
+    }
+  ],
+  "what_we_replace": [
+    {
+      "tool": "Pabbly Connect",
+      "used_for_today": "Success and failure automations triggered by webhooks: sheet rows, WhatsApp, email, follow-up.",
+      "replaced_by": "Module M4 Workflow engine, with direct WhatsApp (M5) and email (M6).",
+      "what_changes_for_the_client": [
+        "No Pabbly subscription.",
+        "Automations are visible, versioned and logged inside the platform.",
+        "Failures raise alerts instead of failing silently."
+      ],
+      "migration": "Existing flows are documented and rebuilt as native workflows, then run in parallel for a short period before Pabbly is switched off."
+    },
+    {
+      "tool": "Trackify-style tracking tools",
+      "used_for_today": "Tracking visitors, sources and conversions.",
+      "replaced_by": "Module M7 First-party tracking and M8 Analytics.",
+      "what_changes_for_the_client": [
+        "No tracking subscription.",
+        "Tracking script served from the client's own domain.",
+        "Revenue attributed to campaign and ad inside the same dashboard as leads."
+      ],
+      "migration": "Run the new tracking alongside the old one, compare numbers, then retire the old tool."
+    },
+    {
+      "tool": "Excel and Google Sheets for leads and payments",
+      "used_for_today": "System of record for leads, payments and sales follow-up.",
+      "replaced_by": "Module M2 Leads and CRM, M3 Payments, M10 Exports.",
+      "what_changes_for_the_client": [
+        "Sales works inside the platform, not in shared files.",
+        "Each salesperson sees only their own leads.",
+        "Excel export remains available on demand, but it is no longer the source of truth."
+      ],
+      "migration": "Import existing sheets once as historical leads; stop writing to sheets after cut-over."
+    },
+    {
+      "tool": "Separate dashboards per client or per team",
+      "used_for_today": "Different views for sales, developers and management in different tools.",
+      "replaced_by": "One dashboard with role-based access (roles_and_access).",
+      "what_changes_for_the_client": [
+        "One login.",
+        "Roles decide what each person sees.",
+        "The Super Admin controls everything."
+      ],
+      "migration": "Create users and roles, assign leads, then switch teams over."
+    },
+    {
+      "tool": "Hard-coded funnel configuration",
+      "used_for_today": "Price, countdown, bonuses and copy edited in code.",
+      "replaced_by": "Module M9 Content and configuration, M1 Connector.",
+      "what_changes_for_the_client": [
+        "Offer changes without a developer or a redeploy.",
+        "New landing pages start from a copied configuration."
+      ],
+      "migration": "Move current constants into page configuration once the connector is live."
+    }
+  ],
+  "what_we_do_not_replace": [
+    {
+      "item": "Razorpay",
+      "why": "Moving money requires a licensed payment gateway. We integrate with it directly and remove the middle tool between it and the client.",
+      "cost_that_remains": "Razorpay transaction fees."
+    },
+    {
+      "item": "WhatsApp Business API",
+      "why": "Messages must travel through Meta's official network, directly or through an approved provider.",
+      "cost_that_remains": "Per-conversation charges from Meta or the provider, and any provider fee."
+    },
+    {
+      "item": "Meta Ads and Google Ads",
+      "why": "These are where ads run. We send them conversion events and show their results next to ours.",
+      "cost_that_remains": "Ad spend."
+    },
+    {
+      "item": "Email delivery provider",
+      "why": "Reliable inbox delivery needs an established sending infrastructure.",
+      "cost_that_remains": "Provider usage charges, typically small."
+    },
+    {
+      "item": "SMS provider (if SMS is used)",
+      "why": "SMS requires telecom-registered senders.",
+      "cost_that_remains": "Per-SMS charges."
+    },
+    {
+      "item": "Hosting, database and domains",
+      "why": "The platform needs servers. They belong to the client, not to a tool vendor.",
+      "cost_that_remains": "Hosting and domain charges."
+    },
+    {
+      "item": "Video hosting for VSL pages",
+      "why": "Streaming video at scale is best left to a video host or CDN.",
+      "cost_that_remains": "Video hosting or bandwidth charges."
+    },
+    {
+      "item": "Landing page design",
+      "why": "Page layouts and creative are still designed and built as code. The platform manages their content, offer and data.",
+      "cost_that_remains": "Design and build effort per page."
+    }
+  ],
+  "honest_note_on_third_party_dependence": [
+    "'No third party' is true for the tools that sit between the pieces: workflow automation, tracking and spreadsheets.",
+    "It is not true for the services that do things only a regulated or global network can do: payments, WhatsApp, ads, email and SMS delivery.",
+    "The saving is the recurring subscription of the middle tools, plus the control and ownership of the data. It is not the removal of all running costs."
+  ],
+  "flows": {
+    "landing_page_connection": {
+      "status": "Method to be confirmed by the client. Steps below follow the default proposal.",
+      "steps": [
+        "Developer or Super Admin creates the landing page in the dashboard and picks the brand.",
+        "The platform issues a page key and secret.",
+        "The page installs the starter kit and sets the keys in its environment.",
+        "The page loads its configuration from the platform.",
+        "The page sends events and form submissions; the Developer checks the live event view.",
+        "Razorpay keys for that page are stored in the integration vault.",
+        "A test payment in test mode is run end to end.",
+        "The page is switched to live and starts counting."
+      ]
+    },
+    "visitor_to_lead": [
+      "Visitor lands on a page from an ad; the script records UTM, click ids and referrer.",
+      "Page view and engagement events are sent.",
+      "Visitor starts checkout and enters name, email and phone.",
+      "At that moment the platform creates or updates the lead with state 'checkout started' and stores the attribution.",
+      "If the visitor leaves, the abandoned checkout workflow can follow up."
+    ],
+    "payment_success": [
+      "Server creates a Razorpay order using the amount from page configuration.",
+      "Razorpay Checkout opens; customer pays.",
+      "Browser sends the result to the server and Razorpay also calls the platform webhook.",
+      "The platform verifies the signature, records the payment once (idempotent), marks the lead Paid.",
+      "Server-side conversion is forwarded to Meta and Google.",
+      "The payment-success workflow runs: confirmation message, receipt email, assignment to a salesperson, follow-up task.",
+      "The lead appears on the landing page dashboard and on the assigned salesperson's workspace.",
+      "Managers and management see the updated numbers immediately."
+    ],
+    "payment_failure": [
+      "Razorpay reports failure through the browser and the webhook.",
+      "The platform records the attempt with the failure reason.",
+      "The payment-failed workflow sends a retry message and, if needed, assigns a call.",
+      "Sales sees the reason on the lead."
+    ],
+    "sales_followup": [
+      "Salesperson opens their workspace and sees only their assigned leads.",
+      "They open a lead, read the timeline, call or message, and update the status.",
+      "Notes and tasks are saved on the timeline.",
+      "Manager reviews team performance; management reviews the brand."
+    ],
+    "export": [
+      "User chooses a filter and columns.",
+      "The platform checks role scope and builds the file in the background.",
+      "A download link is delivered; the export is audit logged."
+    ],
+    "new_user_onboarding": [
+      "Super Admin or Management invites a user by email with a role and brand.",
+      "The user sets a password and, if required, a second factor.",
+      "The user lands on the view for their role."
+    ]
+  },
+  "data_model": {
+    "note": "Logical entities only. Exact schema is decided during design.",
+    "entities": [
+      {
+        "name": "Brand",
+        "fields": [
+          "id",
+          "name",
+          "logo",
+          "colours",
+          "status",
+          "created_at"
+        ]
+      },
+      {
+        "name": "User",
+        "fields": [
+          "id",
+          "name",
+          "email",
+          "phone",
+          "password_hash",
+          "role",
+          "status",
+          "last_login"
+        ]
+      },
+      {
+        "name": "BrandMembership",
+        "fields": [
+          "user_id",
+          "brand_id",
+          "role",
+          "team_id"
+        ]
+      },
+      {
+        "name": "Team",
+        "fields": [
+          "id",
+          "brand_id",
+          "name",
+          "manager_user_id"
+        ]
+      },
+      {
+        "name": "LandingPage",
+        "fields": [
+          "id",
+          "brand_id",
+          "name",
+          "domains",
+          "page_key",
+          "secret_hash",
+          "environment",
+          "status",
+          "config_version"
+        ]
+      },
+      {
+        "name": "PageConfig",
+        "fields": [
+          "id",
+          "landing_page_id",
+          "version",
+          "offer",
+          "content_blocks",
+          "tracking_ids",
+          "published_at"
+        ]
+      },
+      {
+        "name": "Lead",
+        "fields": [
+          "id",
+          "brand_id",
+          "landing_page_id",
+          "name",
+          "email",
+          "phone",
+          "status",
+          "owner_user_id",
+          "first_touch",
+          "last_touch",
+          "tags",
+          "custom_fields",
+          "created_at"
+        ]
+      },
+      {
+        "name": "LeadActivity",
+        "fields": [
+          "id",
+          "lead_id",
+          "type",
+          "payload",
+          "actor_user_id",
+          "created_at"
+        ]
+      },
+      {
+        "name": "Task",
+        "fields": [
+          "id",
+          "lead_id",
+          "assignee_user_id",
+          "due_at",
+          "status",
+          "note"
+        ]
+      },
+      {
+        "name": "Visitor",
+        "fields": [
+          "id",
+          "landing_page_id",
+          "first_seen",
+          "utm",
+          "click_ids",
+          "device",
+          "city"
+        ]
+      },
+      {
+        "name": "Event",
+        "fields": [
+          "id",
+          "visitor_id",
+          "lead_id",
+          "type",
+          "properties",
+          "occurred_at"
+        ]
+      },
+      {
+        "name": "Payment",
+        "fields": [
+          "id",
+          "lead_id",
+          "landing_page_id",
+          "gateway",
+          "order_id",
+          "payment_id",
+          "amount",
+          "currency",
+          "status",
+          "failure_reason",
+          "attribution",
+          "created_at"
+        ]
+      },
+      {
+        "name": "Refund",
+        "fields": [
+          "id",
+          "payment_id",
+          "amount",
+          "status",
+          "reason",
+          "created_by"
+        ]
+      },
+      {
+        "name": "Workflow",
+        "fields": [
+          "id",
+          "brand_id",
+          "landing_page_id",
+          "name",
+          "version",
+          "definition",
+          "status"
+        ]
+      },
+      {
+        "name": "WorkflowRun",
+        "fields": [
+          "id",
+          "workflow_id",
+          "version",
+          "lead_id",
+          "status",
+          "started_at",
+          "finished_at",
+          "steps",
+          "error"
+        ]
+      },
+      {
+        "name": "MessageTemplate",
+        "fields": [
+          "id",
+          "brand_id",
+          "channel",
+          "name",
+          "body",
+          "approval_status"
+        ]
+      },
+      {
+        "name": "Message",
+        "fields": [
+          "id",
+          "lead_id",
+          "channel",
+          "template_id",
+          "direction",
+          "status",
+          "provider_message_id",
+          "created_at"
+        ]
+      },
+      {
+        "name": "Consent",
+        "fields": [
+          "lead_id",
+          "channel",
+          "granted_at",
+          "source",
+          "revoked_at"
+        ]
+      },
+      {
+        "name": "IntegrationCredential",
+        "fields": [
+          "id",
+          "brand_id",
+          "landing_page_id",
+          "provider",
+          "encrypted_secret",
+          "mode"
+        ]
+      },
+      {
+        "name": "ExportJob",
+        "fields": [
+          "id",
+          "user_id",
+          "filter",
+          "columns",
+          "status",
+          "file_url",
+          "row_count"
+        ]
+      },
+      {
+        "name": "AuditLog",
+        "fields": [
+          "id",
+          "user_id",
+          "action",
+          "target",
+          "metadata",
+          "ip",
+          "created_at"
+        ]
+      }
+    ]
+  },
+  "tracking_events": {
+    "standard_events": [
+      {
+        "name": "page_view",
+        "when": "Page loads"
+      },
+      {
+        "name": "scroll_depth",
+        "when": "Visitor passes 25, 50, 75 and 100 percent"
+      },
+      {
+        "name": "video_play",
+        "when": "Video starts"
+      },
+      {
+        "name": "video_progress",
+        "when": "Video passes 25, 50, 75 and 100 percent"
+      },
+      {
+        "name": "cta_click",
+        "when": "Any call-to-action button is tapped"
+      },
+      {
+        "name": "form_start",
+        "when": "First field of the form is focused"
+      },
+      {
+        "name": "lead_submit",
+        "when": "Contact details submitted"
+      },
+      {
+        "name": "checkout_start",
+        "when": "Payment is initiated"
+      },
+      {
+        "name": "payment_success",
+        "when": "Payment captured (server confirmed)"
+      },
+      {
+        "name": "payment_failed",
+        "when": "Payment failed (server confirmed)"
+      }
+    ],
+    "attribution_fields": [
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_content",
+      "utm_term",
+      "fbclid",
+      "gclid",
+      "referrer",
+      "landing_url",
+      "device",
+      "browser",
+      "city"
+    ],
+    "models": [
+      "First touch",
+      "Last touch"
+    ],
+    "privacy": [
+      "Consent banner support where required",
+      "First-party storage only",
+      "Retention window configurable",
+      "Honour deletion requests"
+    ]
+  },
+  "api_surface": {
+    "public_page_api": [
+      {
+        "method": "GET",
+        "path": "/v1/pages/{pageKey}/config",
+        "purpose": "Page fetches offer and content configuration."
+      },
+      {
+        "method": "POST",
+        "path": "/v1/events",
+        "purpose": "Browser sends tracking events with the public key."
+      },
+      {
+        "method": "POST",
+        "path": "/v1/leads",
+        "purpose": "Create or update a lead from a form or checkout start."
+      },
+      {
+        "method": "POST",
+        "path": "/v1/payments/order",
+        "purpose": "Server-to-server: create a Razorpay order for a lead."
+      },
+      {
+        "method": "POST",
+        "path": "/v1/payments/verify",
+        "purpose": "Verify and record a payment result."
+      }
+    ],
+    "webhooks_in": [
+      {
+        "method": "POST",
+        "path": "/webhooks/razorpay",
+        "purpose": "Payment, order and refund events from Razorpay."
+      },
+      {
+        "method": "POST",
+        "path": "/webhooks/whatsapp",
+        "purpose": "Delivery status and inbound messages."
+      }
+    ],
+    "dashboard_api": [
+      {
+        "area": "auth",
+        "examples": [
+          "login",
+          "refresh",
+          "logout",
+          "mfa"
+        ]
+      },
+      {
+        "area": "brands and pages",
+        "examples": [
+          "list",
+          "create",
+          "configure",
+          "rotate keys"
+        ]
+      },
+      {
+        "area": "leads",
+        "examples": [
+          "list with role scope",
+          "get",
+          "update",
+          "assign",
+          "bulk actions",
+          "timeline"
+        ]
+      },
+      {
+        "area": "payments",
+        "examples": [
+          "list",
+          "get",
+          "refund",
+          "reconcile"
+        ]
+      },
+      {
+        "area": "workflows",
+        "examples": [
+          "list",
+          "create",
+          "publish",
+          "runs",
+          "test"
+        ]
+      },
+      {
+        "area": "analytics",
+        "examples": [
+          "summary",
+          "funnel",
+          "sources",
+          "team"
+        ]
+      },
+      {
+        "area": "exports",
+        "examples": [
+          "create job",
+          "status",
+          "download"
+        ]
+      },
+      {
+        "area": "admin",
+        "examples": [
+          "users",
+          "roles",
+          "routing rules",
+          "audit log",
+          "health"
+        ]
+      }
+    ],
+    "rules": [
+      "All dashboard endpoints require authentication and enforce role and brand scope.",
+      "Public page endpoints are rate limited and validated by key and origin.",
+      "Mutating endpoints are idempotent where money or messages are involved."
+    ]
+  },
+  "architecture": {
+    "principle": "Boring, proven components. Own the code, the data and the infrastructure.",
+    "proposed_stack": {
+      "dashboard_frontend": "Next.js with TypeScript, responsive web, role-aware navigation.",
+      "backend_api": "A single API service (Node.js with TypeScript or the team's preferred stack) with clear modules per area.",
+      "database": "PostgreSQL for all relational data.",
+      "queue_and_scheduler": "A job queue (for example Redis based) for workflows, retries, exports and scheduled tasks.",
+      "cache": "Redis for sessions, rate limits and short-lived data.",
+      "file_storage": "Object storage for exports and media.",
+      "events_store": "High-volume tracking events in partitioned PostgreSQL tables first; move to a columnar store only if volume demands it.",
+      "observability": "Structured logs, error tracking and uptime alerts."
+    },
+    "note_on_stack": "The stack is a recommendation. The platform is designed so that the choice can follow the client's team skills.",
+    "environments": [
+      "Local",
+      "Staging with test Razorpay keys",
+      "Production"
+    ],
+    "deployment": [
+      "Containers",
+      "Managed PostgreSQL with automated backups",
+      "Separate worker process for the queue",
+      "Zero-downtime deploys"
+    ],
+    "security": [
+      "TLS everywhere",
+      "Passwords hashed with a modern algorithm",
+      "Secrets encrypted at rest and never returned by the API",
+      "Row-level scoping enforced in the data layer by brand and owner",
+      "Rate limiting and brute force protection",
+      "Signed and idempotent webhooks",
+      "Regular backups and a tested restore",
+      "Least-privilege access for staff and for the application itself"
+    ],
+    "scalability": [
+      "Event ingestion accepts quickly and processes asynchronously.",
+      "Dashboards read from pre-aggregated tables for common reports.",
+      "Landing pages never block on the platform: if the platform is unreachable, checkout still works and events are queued and replayed."
+    ],
+    "reliability": [
+      "Payment recorded through both browser callback and Razorpay webhook.",
+      "Workflow steps retry with backoff, with alerts on permanent failure.",
+      "Health page for the Super Admin."
+    ]
+  },
+  "quotation": {
+    "intro": "This section lists, in plain terms, what we can build and hand over. Amounts are left blank on purpose; they are filled after the open questions are answered.",
+    "deliverables_by_phase": [
+      {
+        "phase": 1,
+        "name": "Foundation: accounts, leads and payments",
+        "relative_size": "Large",
+        "you_receive": [
+          "Super Admin console with brands, landing pages, users and roles",
+          "Login with strong passwords and optional second factor",
+          "Role-based access for Super Admin, Management, Manager, Sales and Developer, enforced on the server",
+          "Landing page connector with page keys, test and live modes and a starter kit",
+          "The existing FUME landing pages connected to the platform",
+          "Lead database capturing leads at checkout start, with source and UTM details",
+          "Sales workspace showing only assigned leads",
+          "Lead status pipeline, notes, tags, tasks and assignment",
+          "Direct Razorpay integration: orders, signature check, webhook, failures, refunds",
+          "Payments dashboard and per landing page dashboard",
+          "Excel and CSV export with role scope and audit logging",
+          "Audit log, encrypted credentials vault, backups",
+          "Import of existing spreadsheet leads as history"
+        ],
+        "replaces": [
+          "Excel as the system of record",
+          "The Pabbly webhook as the only payment record"
+        ],
+        "exit_criteria": [
+          "A real test payment appears on the lead and dashboard without any third-party tool.",
+          "A salesperson cannot see any lead assigned to someone else.",
+          "A closed browser tab after payment still results in a recorded payment."
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Automation and communication",
+        "relative_size": "Large",
+        "you_receive": [
+          "In-house workflow engine with triggers, actions, conditions, delays and retries",
+          "Rebuilt versions of the current success and failure automations",
+          "Abandoned checkout follow-up workflow",
+          "Direct WhatsApp Business API integration with templates, inbound replies and delivery status",
+          "Email notifications and receipts, optional SMS",
+          "Opt-in and opt-out tracking",
+          "Workflow run history and failure alerts",
+          "Developer tools: live event view, webhook log, sandbox"
+        ],
+        "replaces": [
+          "Pabbly Connect"
+        ],
+        "exit_criteria": [
+          "Payment success sends the confirmation and assigns a salesperson automatically.",
+          "A failing workflow step raises an alert and is visible in the run history.",
+          "Pabbly can be switched off after a parallel run."
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Tracking, analytics and content control",
+        "relative_size": "Medium to large",
+        "you_receive": [
+          "First-party tracking script and event pipeline",
+          "First-touch and last-touch attribution on leads and payments",
+          "Conversion forwarding to Meta Conversions API and Google",
+          "Funnel, source, campaign and team performance dashboards",
+          "Ad connection instructions inside each landing page dashboard",
+          "Content and offer editor with draft, publish and rollback",
+          "Basic A/B testing of page versions",
+          "Scheduled summary emails"
+        ],
+        "replaces": [
+          "Trackify-style tracking tools",
+          "Manual reporting"
+        ],
+        "exit_criteria": [
+          "Every payment shows the campaign and ad that produced it.",
+          "Price or countdown can be changed from the dashboard without a code change."
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Polish and scale",
+        "relative_size": "Medium",
+        "you_receive": [
+          "White-label branding per brand",
+          "Custom dashboard domains",
+          "Template library of landing page configurations",
+          "Performance tuning and data archiving",
+          "Documentation and handover training"
+        ],
+        "replaces": [],
+        "exit_criteria": [
+          "A new brand can be created with its own look and first landing page in a short session."
+        ]
+      }
+    ],
+    "what_is_included": [
+      "Design, development and testing of the modules listed per phase",
+      "Deployment to the client's infrastructure",
+      "Connecting the existing FUME landing pages",
+      "Documentation for admins and developers",
+      "A handover session for Super Admin, Management and Sales",
+      "A fixed support window after each phase go-live for defects"
+    ],
+    "what_is_not_included": [
+      "Razorpay, WhatsApp, email, SMS, hosting, domain and video charges",
+      "Ad spend and ad account setup",
+      "Design and build of new landing page layouts beyond those connected in scope",
+      "Writing marketing copy, shooting video or creating ad creatives",
+      "Meta business verification and WhatsApp template approvals, which depend on Meta",
+      "Legal documents such as privacy policy and terms, though the platform supports displaying them",
+      "Ongoing maintenance after the support window unless a maintenance plan is agreed",
+      "Native mobile apps"
+    ],
+    "client_responsibilities": [
+      "Provide the landing page connection preference or approve the default proposal",
+      "Provide Razorpay account access for test and live keys",
+      "Provide WhatsApp Business account details and complete Meta verification",
+      "Share current Pabbly flows and sample sheets so they can be rebuilt and imported",
+      "Name a decision maker for each phase and respond to reviews promptly",
+      "Provide user lists and roles for onboarding"
+    ],
+    "pricing_model": {
+      "structure": "One-time build fee, split by phase, with optional maintenance.",
+      "options": [
+        {
+          "name": "Per phase fixed fee",
+          "description": "Each phase is quoted and paid on its own. Lowest risk for both sides.",
+          "amount_inr": null
+        },
+        {
+          "name": "Full platform fixed fee",
+          "description": "All phases quoted together with a discount for commitment.",
+          "amount_inr": null
+        },
+        {
+          "name": "Optional maintenance and hosting management",
+          "description": "Monitoring, updates, backups and small changes for a recurring fee. Optional; the client may run it themselves.",
+          "amount_inr": null
+        }
+      ],
+      "payment_schedule_suggestion": [
+        "Advance at start of a phase",
+        "Balance at acceptance of that phase"
+      ],
+      "note": "There is no per-user, per-lead or per-message platform fee. Third-party charges are paid by the client directly to those providers."
+    },
+    "timeline": {
+      "approach": "Phases are delivered in order. Phase 1 is the critical path because every other phase depends on the lead, payment and access foundations.",
+      "indicative_sizes": [
+        {
+          "phase": 1,
+          "size": "Largest block of work"
+        },
+        {
+          "phase": 2,
+          "size": "Large, partly limited by Meta approvals"
+        },
+        {
+          "phase": 3,
+          "size": "Medium to large"
+        },
+        {
+          "phase": 4,
+          "size": "Medium"
+        }
+      ],
+      "note": "Calendar dates are fixed after scope sign-off and after the connection method is chosen."
+    }
+  },
+  "dependencies_and_running_costs": {
+    "will_continue_to_cost": [
+      {
+        "item": "Razorpay",
+        "nature": "Per transaction fee"
+      },
+      {
+        "item": "WhatsApp Business API",
+        "nature": "Per conversation charge, plus provider fee if a provider is used"
+      },
+      {
+        "item": "Email provider",
+        "nature": "Usage based, usually small"
+      },
+      {
+        "item": "SMS provider",
+        "nature": "Per message, only if used"
+      },
+      {
+        "item": "Hosting and database",
+        "nature": "Monthly, scales with traffic"
+      },
+      {
+        "item": "Domains and SSL",
+        "nature": "Yearly"
+      },
+      {
+        "item": "Video hosting or CDN",
+        "nature": "Usage based"
+      },
+      {
+        "item": "Ad spend",
+        "nature": "Paid to Meta and Google"
+      }
+    ],
+    "will_stop_costing": [
+      "Pabbly Connect subscription",
+      "Tracking tool subscription",
+      "Any spreadsheet automation add-ons"
+    ],
+    "external_lead_times": [
+      "Meta business verification for WhatsApp can take days to weeks.",
+      "WhatsApp template approval can take hours to days per template.",
+      "Razorpay live activation depends on the client's account status."
+    ]
+  },
+  "risks": [
+    {
+      "id": "R1",
+      "risk": "WhatsApp approval delays",
+      "impact": "Phase 2 messaging cannot go live on time",
+      "mitigation": "Start Meta verification at the beginning of the project; ship email as a fallback channel."
+    },
+    {
+      "id": "R2",
+      "risk": "Data loss during migration from sheets and Pabbly",
+      "impact": "Missing leads or history",
+      "mitigation": "One-time import with a reconciliation report, and a parallel run before switching tools off."
+    },
+    {
+      "id": "R3",
+      "risk": "Access control mistakes exposing leads",
+      "impact": "A salesperson sees data they should not",
+      "mitigation": "Scope enforced in the data layer, automated tests for every role, and a read-only role preview for the Super Admin."
+    },
+    {
+      "id": "R4",
+      "risk": "Missed payments if the customer closes the tab",
+      "impact": "Paid customers not recorded",
+      "mitigation": "Razorpay webhook plus browser callback, idempotent processing and a reconciliation view."
+    },
+    {
+      "id": "R5",
+      "risk": "Tracking numbers differ from the old tool",
+      "impact": "Disputes about performance",
+      "mitigation": "Run both in parallel, document definitions of each metric and agree them upfront."
+    },
+    {
+      "id": "R6",
+      "risk": "Ad platform policy or API changes",
+      "impact": "Conversion forwarding breaks",
+      "mitigation": "Isolated connectors, monitoring on delivery, and local copies of every event."
+    },
+    {
+      "id": "R7",
+      "risk": "Scope growth",
+      "impact": "Delays and cost",
+      "mitigation": "Phase gates, written change requests, and a clear in-scope and out-of-scope list."
+    },
+    {
+      "id": "R8",
+      "risk": "Single point of failure on the platform",
+      "impact": "All pages affected",
+      "mitigation": "Landing pages keep working if the platform is down; events are queued and replayed; backups and health alerts."
+    },
+    {
+      "id": "R9",
+      "risk": "Staff turnover",
+      "impact": "Lost access knowledge",
+      "mitigation": "Instant deactivation, lead reassignment, and documentation."
+    }
+  ],
+  "compliance_and_privacy": [
+    "India's Digital Personal Data Protection Act applies to personal data of customers. The platform supports consent records, purpose limits, access and deletion requests.",
+    "WhatsApp messaging requires opt-in. Opt-in and opt-out are stored and respected by every workflow.",
+    "Card details are never stored. Razorpay handles card data.",
+    "Health-related context in leads (for a wellness brand) is treated as sensitive: masked for roles that do not need it, never used in message text beyond what the customer expects.",
+    "Retention periods are configurable per brand; exports and deletions are logged.",
+    "GST invoice fields are supported on receipts where required.",
+    "Legal pages (privacy policy, disclaimer, terms) remain the client's responsibility to author and approve."
+  ],
+  "success_metrics": [
+    "Percentage of payments recorded within one minute of capture",
+    "Percentage of leads with a known source",
+    "Number of spreadsheets still in use for leads, target zero",
+    "Number of third-party subscriptions cancelled",
+    "Time to launch a new landing page after the connector is in place",
+    "Workflow success rate and number of silent failures, target zero",
+    "Sales follow-up time from payment to first contact",
+    "Zero cross-role data exposure incidents"
+  ],
+  "open_questions": [
+    {
+      "id": "Q1",
+      "question": "Does Razorpay stay as the payment gateway?",
+      "default_assumption": "Yes. It is named in the brief and a gateway is required to take payments."
+    },
+    {
+      "id": "Q2",
+      "question": "How should landing pages connect to the platform?",
+      "default_assumption": "Page key plus server API plus a small first-party script. To be confirmed by the client."
+    },
+    {
+      "id": "Q3",
+      "question": "Which brands and landing pages must be connected in phase 1?",
+      "default_assumption": "The existing FUME pages (lp-1 and lp-2)."
+    },
+    {
+      "id": "Q4",
+      "question": "Which WhatsApp route: Meta Cloud API directly or a business solution provider?",
+      "default_assumption": "Meta Cloud API directly."
+    },
+    {
+      "id": "Q5",
+      "question": "Should management be able to edit workflows and page content, or only the Super Admin and Developer?",
+      "default_assumption": "Only Super Admin and Developer by default; grantable to Management."
+    },
+    {
+      "id": "Q6",
+      "question": "How should leads be assigned: manual, round robin, or rules?",
+      "default_assumption": "Round robin with manual override."
+    },
+    {
+      "id": "Q7",
+      "question": "Do we need SMS?",
+      "default_assumption": "No, unless OTP or reminders are required."
+    },
+    {
+      "id": "Q8",
+      "question": "Where should the platform be hosted and who owns the accounts?",
+      "default_assumption": "In the client's own cloud account."
+    },
+    {
+      "id": "Q9",
+      "question": "Is ad cost to be entered manually or imported from Meta and Google?",
+      "default_assumption": "Manual entry first, import later."
+    },
+    {
+      "id": "Q10",
+      "question": "Which existing data must be imported?",
+      "default_assumption": "Current lead and payment sheets, one time."
+    },
+    {
+      "id": "Q11",
+      "question": "Will multiple brands share the platform from day one?",
+      "default_assumption": "Structure supports it; phase 1 goes live with one brand."
+    },
+    {
+      "id": "Q12",
+      "question": "Will the client want a maintenance plan?",
+      "default_assumption": "Optional."
+    }
+  ],
+  "acceptance_summary": [
+    "Each phase is accepted against its exit criteria.",
+    "Acceptance testing is done on staging with test payments before any live switch.",
+    "Defects found within the support window are fixed without extra charge.",
+    "Change requests after sign-off are quoted separately."
+  ],
+  "glossary": [
+    {
+      "term": "Brand",
+      "meaning": "A business using the platform."
+    },
+    {
+      "term": "Landing page",
+      "meaning": "A single funnel page with its own offer and URL."
+    },
+    {
+      "term": "Lead",
+      "meaning": "A person who interacted with a landing page, whether or not they paid."
+    },
+    {
+      "term": "Workflow",
+      "meaning": "An automatic sequence of actions started by an event, such as a payment."
+    },
+    {
+      "term": "First-party tracking",
+      "meaning": "Tracking run from the client's own domain and database instead of a third-party tool."
+    },
+    {
+      "term": "Attribution",
+      "meaning": "Linking a payment to the ad or campaign that produced it."
+    },
+    {
+      "term": "Webhook",
+      "meaning": "A message one system sends to another when something happens."
+    },
+    {
+      "term": "Idempotent",
+      "meaning": "Safe to receive twice; the second delivery changes nothing."
+    },
+    {
+      "term": "UTM",
+      "meaning": "Tags in a link that say which source and campaign it came from."
+    },
+    {
+      "term": "Conversions API",
+      "meaning": "A server-to-server way of telling Meta or Google that a conversion happened."
+    },
+    {
+      "term": "Role-based access",
+      "meaning": "What a user can see and do depends on their role."
+    }
+  ],
+  "faq": [
+    {
+      "q": "Will we really not pay anyone monthly?",
+      "a": "You stop paying the workflow and tracking tools. You still pay the providers that do the real work: Razorpay fees, WhatsApp conversation charges, email or SMS usage, hosting and ad spend."
+    },
+    {
+      "q": "Can a salesperson see all leads?",
+      "a": "No. A salesperson sees only the leads assigned to them. This is enforced on the server."
+    },
+    {
+      "q": "Can we still use Excel?",
+      "a": "Yes, as an export. Data lives in the platform; Excel is a copy you download when needed."
+    },
+    {
+      "q": "What happens to our current Pabbly flows?",
+      "a": "They are documented and rebuilt as native workflows, run in parallel for a short time, and then Pabbly is switched off."
+    },
+    {
+      "q": "What if the platform goes down?",
+      "a": "Landing pages keep working. Events are queued and replayed, and payments are also confirmed through Razorpay webhooks."
+    },
+    {
+      "q": "Can we add a new landing page ourselves?",
+      "a": "Once the connector is in place, a developer registers the page and connects it in a short session. Content and offer are then edited from the dashboard."
+    },
+    {
+      "q": "Who owns the data?",
+      "a": "The client. It lives in the client's own database and hosting account."
+    },
+    {
+      "q": "Do you build the landing page designs too?",
+      "a": "Layouts are built as code per page and are quoted separately from the platform."
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { funnel } from "@/data/funnel";
 
@@ -10,6 +9,7 @@ type RzpInstance = { open: () => void; on: (event: "payment.failed", cb: (r: Rzp
 type RzpCtor = new (options: Record<string, unknown>) => RzpInstance;
 
 const SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+const APPLY_PAGE_URL = "https://transform.fume.fit/apply-page/";
 
 function loadRazorpay(): Promise<RzpCtor | null> {
   const w = window as unknown as { Razorpay?: RzpCtor };
@@ -51,7 +51,6 @@ export function CheckoutForm() {
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
 
   const nameOk = name.trim().length >= 2;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -88,7 +87,8 @@ export function CheckoutForm() {
               try {
                 const v = await postJson("/api/razorpay/verify", r);
                 if (!v.ok) throw new Error("verify failed");
-                router.push("/thank-you");
+                // Verify already fired the Pabbly success webhook; then send buyer to booking.
+                window.location.assign(APPLY_PAGE_URL);
               } catch {
                 setError("Payment received but we couldn't confirm it. Please contact support with your payment ID: " + r.razorpay_payment_id);
                 setBusy(false);

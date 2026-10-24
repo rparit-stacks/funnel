@@ -2,7 +2,7 @@ import Image from "next/image";
 import { LP2_WRAP } from "@/components/lp2/ui";
 import { footer, founder } from "@/data/funnel";
 
-const chips = ["100% money-back", "100% money back"];
+const chips = ["100% money-back",  "1:1 with an expert coach"];
 
 export function Footer() {
   return (
